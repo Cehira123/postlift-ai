@@ -1,101 +1,86 @@
-# プロダクト仕様：PostLift AI
+# 製品要件定義書 — PostLift AI
 
-## 1. コア機能定義
+## プロダクトビジョン
 
-### MVP スコープ（90日）
-
-| 機能 | 説明 | 優先度 |
-|------|------|--------|
-| ポスト購入UI | Shopify注文完了後ページにオファーカード表示 | P0 |
-| AIオファー生成 | 購入商品・粗利率・在庫・購入履歴でオファー選定 | P0 |
-| オファーコピー生成 | LLMで自動生成（商品名・割引・緊急性） | P0 |
-| ワンクリック承諾 | 再入力なしで追加注文確定 | P0 |
-| 基本ダッシュボード | accept rate / AOV uplift / added revenue 表示 | P0 |
-| 課金管理 | Shopify Billing API連携 | P0 |
-| 失敗オファー自動抑制 | 低accept rateのオファーを頻度自動削減 | P1 |
-| A/Bテスト | オファーパターン間の比較 | P1 |
-| 粗利補正最適化 | 粗利率込みのスコアリング | P1 |
-
-### P0外（後回し）
-
-- 多言語対応
-- 複数オファー同時表示
-- 外部レビューツール連携
+> 「Shopify ストアオーナーが、粗利を削らずに AOV を上げられる AI アシスタント」
 
 ---
 
-## 2. オファーエンジン仕様
+## MVP スコープ（30日で作るもの）
 
-### 入力パラメータ
+### In Scope
 
-```typescript
-interface OfferInput {
-  orderId: string;
-  purchasedProductIds: string[];
-  totalPrice: number;
-  customerId?: string;          // 既存顧客ならhistoryを参照
-  shopDomain: string;
-}
-```
+- 注文完了後ページにワンクリックアップセル UI を表示
+- AI が提案候補を選定・優先順位付け
+- オファー文面を LLM で自動生成
+- 提案条件：購入商品、粗利率、在庫、過去承諾率
+- 失敗オファーの自動頻度低減
+- ダッシュボード（AOV uplift / acceptance rate / added revenue）
 
-### スコアリングロジック
+### Out of Scope（MVP 後）
 
-```
-Offer Score = 
-  関連スコア (商品相性)          × 0.30
-  + マージンスコア (粗利率)      × 0.25
-  + 在庫スコア (在庫日数)        × 0.15
-  + 過去acceptスコア (類似顧客)  × 0.20
-  + 緊急性スコア (在庫残り)      × 0.10
-```
+- A/B テスト機能
+- メール・SMS フォローアップ
+- マルチ言語対応
+- Shopify Plus カスタマイズ
 
-### LLMへのプロンプト構造
+---
+
+## ユーザーストーリー
 
 ```
-System: ECストアのポスト購入オファーコピーライター
-Context: 購入商品={商品名}、提案商品={商品名}、割引={X%}、在庫残={N個}
-Task: 25文字以内の見出し + 40文字以内のサブコピー + CTAボタン文言
-Constraint: 緊急性は自然に、押しつけがましくなく
+As a Shopify ストアオーナー,
+I want 購入完了直後に AI が関連商品を提案してほしい
+So that 粗利を維持しながら AOV を上げられる
+```
+
+```
+As a ストアオーナー,
+I want ダッシュボードで AOV uplift を確認したい
+So that 導入効果を数値で確認できる
 ```
 
 ---
 
-## 3. Shopify Extension 仕様
+## 画面定義
 
-### 使用するShopify API
+### 1. インストール後セットアップ画面
+- 商品粗利率の入力 or Shopify Cost フィールド自動取得
+- 在庫閾値の設定（在庫N個以下は提案から除外）
+- オファー除外商品リスト
 
-| API | 用途 |
-|-----|------|
-| Post-Purchase Extension | 注文確認後UIの差し込み |
-| Checkout API | 追加注文の確定 |
-| Admin API (GraphQL) | 商品・在庫・粗利情報の取得 |
-| Webhooks (orders/paid) | 注文確定トリガー |
-| Billing API | サブスクリプション課金 |
+### 2. ポスト購入 UI（Shopify Extension）
+- 提案商品画像 + 名称 + 価格
+- ワンクリック追加ボタン
+- AI 生成のオファーコピー（20〜40文字）
+- タイマー（任意、緊迫感演出）
 
-### UI仕様
-
-```
-┌─────────────────────────────┐
-│ 🎉 ご購入ありがとうございます │
-│                             │
-│ ┌─────────────────────────┐ │
-│ │ [商品画像]              │ │
-│ │ {商品名} - {割引}OFF    │ │
-│ │ {サブコピー}            │ │
-│ │                         │ │
-│ │ [今すぐ追加する] [不要]  │ │
-│ └─────────────────────────┘ │
-└─────────────────────────────┘
-```
+### 3. ダッシュボード
+- 当月 AOV uplift（%）
+- Offer acceptance rate（%）
+- Added revenue per 100 orders（円/USD）
+- Margin-adjusted uplift（差別化 KPI）
+- 提案ランキング（承諾率順）
 
 ---
 
-## 4. ダッシュボードKPI定義
+## 主要 KPI
 
-| KPI | 計算式 | 目標値（目安） |
-|-----|--------|----------------|
-| Offer acceptance rate | 承諾数 / 表示数 | > 8% |
-| Added revenue / 100 orders | Σ承諾金額 / (総注文数/100) | 最大化 |
-| AOV uplift | (全注文平均 - 非提示平均) / 非提示平均 | > 5% |
-| Margin-adjusted uplift | AOV uplift × 平均粗利率補正 | ≥ AOV uplift |
-| 30日チャーン率 | 30日内解約数 / インストール数 | < 10% |
+| KPI | 定義 | 目標（30日） |
+|---|---|---|
+| Offer acceptance rate | 提案承諾数 / 提案表示数 | 8〜15% |
+| AOV uplift | (after AOV - before AOV) / before AOV | +5〜15% |
+| Margin-adjusted uplift | 粗利補正後の AOV uplift | before AOV uplift と差を見る |
+| MRR | 課金ユーザー × 月額 | 3ヶ月で $1,000 |
+
+---
+
+## 差別化ポイント
+
+```
+既存競合: 売上最大化（粗利無視）
+PostLift AI: 粗利補正後の利益最大化
+```
+
+粗利率の低い商品をアップセルしても、ストアオーナーの手残りは変わらないか悪化する。
+PostLift AI は粗利を加味した「本当に意味のある AOV 向上」を提供する。

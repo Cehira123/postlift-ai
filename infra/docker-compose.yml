@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./src
+    ports:
+      - '8000:8000'
+    env_file:
+      - ../.env
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: postlift
+      POSTGRES_USER: ${DB_USER:-postlift}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postlift}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - '5678:5678'
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=changeme
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  n8n_data:

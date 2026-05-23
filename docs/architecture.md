@@ -1,121 +1,153 @@
-# アーキテクチャ詳細：PostLift AI
+# システムアーキテクチャ — PostLift AI
 
 ## 全体構成
 
 ```
-[Shopify Store]
-  │
-  │ 1. Order webhook
-  ▼
-[Webhook Handler]
-  │
-  │ 2. 注文データ取得・検証
-  ▼
-[Offer Engine]
-  ├── Product Service    ... Admin API で商品・粗利・在庫取得
-  ├── Customer Service   ... 購入履歴スコアリング
-  ├── Scoring Service    ... 多軸スコア計算
-  └── LLM Service        ... オファーコピー生成
-  │
-  │ 3. オファー候補（スコア付き）
-  ▼
-[Redis Cache]             ... TTL付きでオファー候補をキャッシュ
-  │
-  │ 4. Extension が取得
-  ▼
-[Post-Purchase Extension] ... Shopify Checkout UI Extension
-  │
-  │ 5a. 承諾 → Checkout API
-  │ 5b. 拒否 → Analytics 記録
-  ▼
-[Analytics Service]
-  └── PostgreSQL (KPI集計・フィードバックループ)
+┌─────────────────────────────────────────────────────────┐
+│                     Shopify Store                        │
+│  Order Completed → post-purchase extension UI           │
+└────────────────────────┬────────────────────────────────┘
+                         │ Webhook (order/created)
+┌────────────────────────▼────────────────────────────────┐
+│                   PostLift API (FastAPI)                  │
+│  /api/offer  →  Offer Engine  →  Response JSON           │
+└───────────┬──────────────────────────────┬──────────────┘
+            │                              │
+┌───────────▼──────────┐     ┌─────────────▼─────────────┐
+│   AI Offer Engine    │     │     Database (PostgreSQL)   │
+│  - LLM (OpenAI API)  │     │  - orders                  │
+│  - Margin filter     │     │  - products (margin, stock) │
+│  - Stock check       │     │  - offers (accept/reject)  │
+│  - Acceptance score  │     │  - merchants               │
+└──────────────────────┘     └────────────────────────────┘
 ```
+
+---
 
 ## 技術スタック
 
-| レイヤー | 採用技術 | 理由 |
-|----------|----------|------|
-| API Server | Node.js + Hono | 軽量・型安全・Edgeデプロイ対応 |
-| Shopify Extension | React (Checkout UI Ext.) | Shopify公式 |
-| LLM | Claude Haiku (Anthropic) | コスト・速度バランス |
-| DB | PostgreSQL (Supabase) | 無料枠あり、RLS対応 |
-| Cache | Redis (Upstash) | サーバーレス・従量課金 |
-| Queue | BullMQ | バックグラウンドジョブ |
-| Hosting | Railway | デプロイ簡単・低コスト |
-| 監視 | Sentry | エラートラッキング |
+| レイヤー | 技術 | 理由 |
+|---|---|---|
+| Shopify Extension | Shopify UI Extensions (React) | 公式サポート・審査通過率 |
+| Backend API | Python + FastAPI | LLM 連携が容易、非同期対応 |
+| AI | OpenAI GPT-4o-mini | コスト効率、JSON mode |
+| DB | PostgreSQL | リレーショナルデータ管理 |
+| Workflow | n8n | ノーコードで自動化ループ構築 |
+| Infra | Docker + VPS (Hetzner) | 低コスト、電気代含めて月3,000円以下 |
 
-## データモデル（主要テーブル）
+---
+
+## AI Offer Engine 詳細
+
+### 入力
+```json
+{
+  "order": {
+    "items": [{"product_id": "xxx", "variant_id": "yyy", "price": 3000}],
+    "total_price": 3000,
+    "customer_id": "zzz"
+  },
+  "merchant": {
+    "shop_id": "aaa",
+    "margin_threshold": 0.30
+  }
+}
+```
+
+### 処理フロー
+```
+1. 購入商品から関連商品候補を取得（Shopify Admin API）
+2. 粗利率 < margin_threshold の商品を除外
+3. 在庫 <= 在庫閾値の商品を除外
+4. 過去30日の承諾率スコアで並べ替え
+5. Top 1商品を選択
+6. LLM にオファーコピーを生成させる
+7. JSON レスポンスで返す
+```
+
+### LLM プロンプト（コピー生成）
+```
+You are a conversion copywriter for an e-commerce store.
+Generate a one-click upsell offer message in Japanese.
+Product: {product_name}
+Buyer just purchased: {purchased_items}
+Requirements:
+- Max 35 characters
+- Include why this pairs well
+- No hard sell language
+- Output: JSON {"copy": "...", "cta": "..."}
+```
+
+---
+
+## DB スキーマ（主要テーブル）
 
 ```sql
--- テナント（インストール済みストア）
-CREATE TABLE shops (
-  id UUID PRIMARY KEY,
-  shopify_domain TEXT UNIQUE NOT NULL,
-  access_token TEXT NOT NULL,
-  plan TEXT NOT NULL DEFAULT 'starter',
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- 商品マスタ（粗利・在庫管理）
+CREATE TABLE products (
+  id            VARCHAR PRIMARY KEY,
+  shop_id       VARCHAR NOT NULL,
+  title         VARCHAR,
+  margin_rate   DECIMAL(5,4),  -- 0.0000〜1.0000
+  stock_qty     INT,
+  updated_at    TIMESTAMP
 );
 
--- 表示されたオファー
-CREATE TABLE offer_impressions (
-  id UUID PRIMARY KEY,
-  shop_id UUID REFERENCES shops(id),
-  order_id TEXT NOT NULL,
-  product_id TEXT NOT NULL,
-  offer_copy JSONB NOT NULL,      -- {headline, subcopy, cta}
-  score FLOAT NOT NULL,
-  margin_rate FLOAT,
-  shown_at TIMESTAMPTZ DEFAULT NOW()
+-- オファー結果ログ
+CREATE TABLE offer_events (
+  id            SERIAL PRIMARY KEY,
+  shop_id       VARCHAR NOT NULL,
+  order_id      VARCHAR,
+  offered_product_id VARCHAR,
+  accepted      BOOLEAN,
+  added_revenue DECIMAL(10,2),
+  created_at    TIMESTAMP DEFAULT NOW()
 );
 
--- 承諾/拒否
-CREATE TABLE offer_results (
-  id UUID PRIMARY KEY,
-  impression_id UUID REFERENCES offer_impressions(id),
-  accepted BOOLEAN NOT NULL,
-  added_revenue FLOAT,
-  recorded_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- KPIスナップショット（日次集計）
-CREATE TABLE kpi_snapshots (
-  id UUID PRIMARY KEY,
-  shop_id UUID REFERENCES shops(id),
-  date DATE NOT NULL,
-  impressions INT,
-  acceptances INT,
-  added_revenue FLOAT,
-  avg_aov_uplift FLOAT,
-  margin_adjusted_uplift FLOAT
+-- マーチャント設定
+CREATE TABLE merchants (
+  shop_id          VARCHAR PRIMARY KEY,
+  margin_threshold DECIMAL(5,4) DEFAULT 0.30,
+  stock_threshold  INT DEFAULT 5,
+  plan             VARCHAR DEFAULT 'starter',
+  created_at       TIMESTAMP DEFAULT NOW()
 );
 ```
 
-## 自動化フロー（全自動化の設計）
+---
+
+## n8n ワークフロー（全自動ループ）
 
 ```
-Webhook受信
-  → Offer Engineが自動スコアリング
-  → LLM APIがコピー自動生成
-  → Redisにキャッシュ
-  → Extension が自動表示
-  → 結果をDBに自動記録
-  → 日次バッチがKPI集計・低acceptオファーを自動抑制
-  → ダッシュボードに自動反映
-  → Shopify Billing APIで課金も自動
+[毎日0時 CRON]
+    │
+    ▼
+[Shopify Admin API] → 在庫・価格を同期
+    │
+    ▼
+[PostgreSQL] → products テーブルを更新
+    │
+    ▼
+[集計クエリ] → 過去7日の承諾率を計算
+    │
+    ▼
+[PostgreSQL] → offer_score テーブルを更新
+    │
+    ▼
+[Slack/LINE Notify] → 日次サマリーを通知（任意）
 ```
 
-人手が不要なのは、すべてイベントドリブン（注文発生 → 全部自動）で回るためです。
+---
 
-## コスト試算（月間）
+## コスト見積もり
 
-| 項目 | 費用（概算） |
-|------|-------------|
-| サーバー (Railway) | ~$10 |
-| DB (Supabase) | 無料〜$25 |
-| Redis (Upstash) | ~$0〜$10 |
-| LLM API (Haiku, 1万回/月) | ~$3〜$10 |
-| Sentry | 無料枠 |
-| **合計** | **~$20〜$55/月** |
+| 項目 | 月額 |
+|---|---|
+| VPS (Hetzner CX22) | ¥600〜900 |
+| 電気代（自宅 PC 補助） | ¥0〜500 |
+| OpenAI API | 1リクエスト≒$0.001、100注文/日 × 30日 = $3〜10 |
+| PostgreSQL (同VPS) | 込み |
+| n8n (セルフホスト) | 込み |
+| **合計** | **月1,500〜3,000円程度** |
 
-→ $29プランの顧客が2〜3人いれば黒字化。
+収益分岐点：Starter プラン ($29) × 2ユーザー = $58/月 → コスト回収完了
