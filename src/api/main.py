@@ -1,40 +1,43 @@
 """
-PostLift AI — FastAPI Backend
+PostLift AI — FastAPI エントリポイント
 """
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="PostLift AI", version="0.1.0")
+from src.api.billing import router as billing_router
+from src.api.metrics import router as metrics_router
+from src.api.shopify_webhook import router as webhook_router
+from src.db.session import close_pool, init_pool
+from src.shopify.auth import router as auth_router
 
+app = FastAPI(
+    title="PostLift AI",
+    description="Shopify向けAIポスト購入アップセル最適化SaaS",
+    version="0.1.0",
+)
 
-class OrderItem(BaseModel):
-    product_id: str
-    title: str
-    price: float
-
-
-class OfferRequest(BaseModel):
-    shop_id: str
-    order_id: str
-    items: List[OrderItem]
-
-
-class OfferResponse(BaseModel):
-    product_id: str
-    title: str
-    price: float
-    copy: str
-    cta: str
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@app.post("/api/offer", response_model=OfferResponse)
-async def get_offer(req: OfferRequest):
-    """
-    注文情報を受け取り、最適なアップセルオファーを返す
-    """
-    # TODO: DB から候補商品を取得し OfferEngine を呼び出す
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+@app.on_event("startup")
+async def startup():
+    await init_pool()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await close_pool()
+
+
+app.include_router(auth_router)
+app.include_router(webhook_router)
+app.include_router(billing_router)
+app.include_router(metrics_router)
 
 
 @app.get("/health")

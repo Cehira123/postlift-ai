@@ -1,102 +1,126 @@
 """
-PostLift AI — Offer Engine
-AI が粗利・在庫・承諾率を加味してポスト購入オファーを選定・生成する
+AI オファーエンジン
+注文データ・在庫・粗利を元に最適なアップセル商品を選定し、
+GPT-4o-mini でパーソナライズされた訴求文を生成する。
 """
 from __future__ import annotations
-import json
-from dataclasses import dataclass
-from typing import Optional
-from openai import AsyncOpenAI
 
-client = AsyncOpenAI()
+import os
+import uuid
+from typing import Any
 
+import openai
 
-@dataclass
-class Product:
-    id: str
-    title: str
-    price: float
-    margin_rate: float
-    stock_qty: int
-    acceptance_score: float = 0.0
+from src.db.session import get_db
 
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
-@dataclass
-class OfferResult:
-    product: Product
-    copy: str
-    cta: str
+# スコアリングの重み
+WEIGHT_MARGIN = 0.5
+WEIGHT_STOCK = 0.2
+WEIGHT_ACCEPT_RATE = 0.3
 
 
-class OfferEngine:
+def _score(margin: float, stock: int, accept_rate: float) -> float:
     """
-    1注文に対して最適なアップセルオファーを1つ選定・生成する
+    粗利率・在庫数・過去承諾率で 0-1 のスコアを算出。
+    stock は 0-100 にクリップして正規化。
     """
+    stock_norm = min(stock, 100) / 100
+    return WEIGHT_MARGIN * margin + WEIGHT_STOCK * stock_norm + WEIGHT_ACCEPT_RATE * accept_rate
 
-    def __init__(
-        self,
-        margin_threshold: float = 0.30,
-        stock_threshold: int = 5,
-    ):
-        self.margin_threshold = margin_threshold
-        self.stock_threshold = stock_threshold
 
-    def filter_candidates(self, candidates: list[Product]) -> list[Product]:
-        """粗利・在庫フィルタ"""
-        return [
-            p for p in candidates
-            if p.margin_rate >= self.margin_threshold
-            and p.stock_qty > self.stock_threshold
-        ]
+async def _fetch_candidates(
+    db, shop_domain: str, ordered_product_ids: list[str]
+) -> list[dict]:
+    """
+    DB からアップセル候補商品を取得。
+    既に注文した商品は除外し、粗利 >= 30% かつ在庫 > 0 のみ対象。
+    """
+    rows = await db.fetch(
+        """
+        SELECT product_id, title, price, gross_margin, stock_qty,
+               COALESCE(accept_rate, 0) AS accept_rate
+        FROM products
+        WHERE shop_domain = $1
+          AND product_id != ALL($2::text[])
+          AND gross_margin >= 30
+          AND stock_qty > 0
+        ORDER BY gross_margin DESC
+        LIMIT 20
+        """,
+        shop_domain,
+        ordered_product_ids,
+    )
+    return [dict(r) for r in rows]
 
-    def rank_candidates(self, candidates: list[Product]) -> list[Product]:
-        """承諾率スコア降順でソート"""
-        return sorted(candidates, key=lambda p: p.acceptance_score, reverse=True)
 
-    async def generate_copy(
-        self,
-        product: Product,
-        purchased_items: list[str],
-        lang: str = "ja",
-    ) -> tuple[str, str]:
-        """LLM でオファーコピーを生成"""
-        system_prompt = (
-            "You are a conversion copywriter for an e-commerce store. "
-            "Generate a short, natural one-click upsell offer message. "
-            "Output JSON only: {\"copy\": \"...\", \"cta\": \"...\"}"
-        )
-        user_prompt = (
-            f"Product to upsell: {product.title} (¥{product.price:,.0f})\n"
-            f"Buyer just purchased: {', '.join(purchased_items)}\n"
-            f"Language: {lang}\n"
-            f"Requirements:\n"
-            f"- copy: max 35 chars, explain why it pairs well\n"
-            f"- cta: max 15 chars, action-oriented\n"
-        )
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            max_tokens=100,
-        )
-        data = json.loads(response.choices[0].message.content)
-        return data.get("copy", ""), data.get("cta", "追加する")
+async def _generate_copy(product_title: str, order_items: list[str]) -> str:
+    """
+    GPT-4o-mini で訴求コピーを生成。
+    """
+    prompt = (
+        f"あなたは Shopify ストアのコンバージョン最適化の専門家です。\n"
+        f"顧客は今 {', '.join(order_items)} を購入しました。\n"
+        f"次の商品を追加購入するよう促す、自然で魅力的な日本語の一文を作成してください: {product_title}\n"
+        f"※ 20文字以内、絵文字不可"
+    )
+    response = await openai.ChatCompletion.acreate(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=60,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
 
-    async def get_offer(
-        self,
-        candidates: list[Product],
-        purchased_items: list[str],
-    ) -> Optional[OfferResult]:
-        """メインメソッド: フィルタ → ランキング → コピー生成"""
-        filtered = self.filter_candidates(candidates)
-        if not filtered:
-            return None
 
-        ranked = self.rank_candidates(filtered)
-        top = ranked[0]
+async def build_offer(
+    db,
+    shop_domain: str,
+    order: dict[str, Any],
+) -> dict:
+    """
+    メイン関数。注文データを受け取り最適なオファーを生成して DB に保存。
+    Returns: offer dict (offer_id, product_id, copy, price, score)
+    """
+    line_items = order.get("line_items", [])
+    ordered_ids = [str(item["product_id"]) for item in line_items]
+    ordered_titles = [item["title"] for item in line_items]
 
-        copy, cta = await self.generate_copy(top, purchased_items)
-        return OfferResult(product=top, copy=copy, cta=cta)
+    candidates = await _fetch_candidates(db, shop_domain, ordered_ids)
+    if not candidates:
+        return {"offer_id": None, "reason": "no_candidates"}
+
+    # スコアリングして最上位を選択
+    best = max(
+        candidates,
+        key=lambda c: _score(c["gross_margin"] / 100, c["stock_qty"], c["accept_rate"]),
+    )
+
+    copy_text = await _generate_copy(best["title"], ordered_titles)
+    offer_id = str(uuid.uuid4())
+
+    await db.execute(
+        """
+        INSERT INTO upsell_offers
+            (id_str, shop_domain, order_id, product_id, upsell_price, gross_margin, stock_qty, ai_score)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        """,
+        offer_id,
+        shop_domain,
+        str(order["id"]),
+        best["product_id"],
+        float(best["price"]),
+        best["gross_margin"],
+        best["stock_qty"],
+        _score(best["gross_margin"] / 100, best["stock_qty"], best["accept_rate"]),
+    )
+
+    return {
+        "offer_id": offer_id,
+        "product_id": best["product_id"],
+        "title": best["title"],
+        "price": best["price"],
+        "copy": copy_text,
+        "score": _score(best["gross_margin"] / 100, best["stock_qty"], best["accept_rate"]),
+    }

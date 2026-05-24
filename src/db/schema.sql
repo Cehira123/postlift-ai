@@ -1,41 +1,44 @@
--- PostLift AI — Database Schema
+-- PostLift AI — データベーススキーマ
+-- PostgreSQL 15+
 
-CREATE TABLE IF NOT EXISTS merchants (
-  shop_id          VARCHAR(255) PRIMARY KEY,
-  shop_domain      VARCHAR(255) NOT NULL,
-  margin_threshold DECIMAL(5,4) DEFAULT 0.30,
-  stock_threshold  INT DEFAULT 5,
-  plan             VARCHAR(50) DEFAULT 'starter',
-  created_at       TIMESTAMP DEFAULT NOW(),
-  updated_at       TIMESTAMP DEFAULT NOW()
+-- ショップ (インストール済み Shopify ストア)
+CREATE TABLE IF NOT EXISTS shops (
+    id            BIGSERIAL PRIMARY KEY,
+    shop_domain   TEXT        NOT NULL UNIQUE,
+    access_token  TEXT        NOT NULL,
+    active        BOOLEAN     NOT NULL DEFAULT true,
+    plan          TEXT        NOT NULL DEFAULT 'free',  -- 'free' | 'growth' | 'scale'
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS products (
-  id           VARCHAR(255),
-  shop_id      VARCHAR(255) REFERENCES merchants(shop_id),
-  title        VARCHAR(500),
-  variant_id   VARCHAR(255),
-  price        DECIMAL(10,2),
-  cost         DECIMAL(10,2),
-  margin_rate  DECIMAL(5,4) GENERATED ALWAYS AS (
-    CASE WHEN price > 0 THEN (price - cost) / price ELSE 0 END
-  ) STORED,
-  stock_qty    INT DEFAULT 0,
-  updated_at   TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (id, shop_id)
+-- アップセルオファー履歴
+CREATE TABLE IF NOT EXISTS upsell_offers (
+    id              BIGSERIAL PRIMARY KEY,
+    shop_domain     TEXT        NOT NULL REFERENCES shops(shop_domain),
+    order_id        TEXT        NOT NULL,          -- Shopify Order GID
+    product_id      TEXT        NOT NULL,          -- 提案商品
+    upsell_price    NUMERIC(12,2) NOT NULL,
+    gross_margin    NUMERIC(5,2),                  -- 粗利率 (%)
+    stock_qty       INT,
+    accepted        BOOLEAN,                       -- NULL=未回答, true=承諾, false=拒否
+    ai_score        NUMERIC(5,4),                  -- モデルの信頼スコア 0-1
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    responded_at    TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS offer_events (
-  id                   SERIAL PRIMARY KEY,
-  shop_id              VARCHAR(255) REFERENCES merchants(shop_id),
-  order_id             VARCHAR(255),
-  offered_product_id   VARCHAR(255),
-  offer_copy           TEXT,
-  accepted             BOOLEAN DEFAULT FALSE,
-  added_revenue        DECIMAL(10,2) DEFAULT 0,
-  created_at           TIMESTAMP DEFAULT NOW()
+-- 請求
+CREATE TABLE IF NOT EXISTS billing (
+    id              BIGSERIAL PRIMARY KEY,
+    shop_domain     TEXT        NOT NULL REFERENCES shops(shop_domain),
+    charge_id       TEXT        NOT NULL UNIQUE,   -- Shopify charge ID
+    status          TEXT        NOT NULL DEFAULT 'pending',  -- pending | active | cancelled
+    plan            TEXT        NOT NULL,
+    price_usd       NUMERIC(8,2) NOT NULL,
+    activated_at    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_offer_events_shop_id ON offer_events(shop_id);
-CREATE INDEX IF NOT EXISTS idx_offer_events_created_at ON offer_events(created_at);
-CREATE INDEX IF NOT EXISTS idx_products_shop_id ON products(shop_id);
+-- インデックス
+CREATE INDEX IF NOT EXISTS idx_upsell_offers_shop_domain ON upsell_offers(shop_domain);
+CREATE INDEX IF NOT EXISTS idx_upsell_offers_created_at  ON upsell_offers(created_at DESC);
