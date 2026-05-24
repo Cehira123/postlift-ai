@@ -1,0 +1,12 @@
+# Railway デプロイ設定
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
