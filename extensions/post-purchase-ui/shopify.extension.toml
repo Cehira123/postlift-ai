@@ -1,0 +1,8 @@
+[extension]
+type = "post_purchase_ui"
+name = "PostLift AI — Post-Purchase Upsell"
+handle = "postlift-ai-upsell"
+
+[[extensions.targeting]]
+module = "./src/index.jsx"
+metafields = []
