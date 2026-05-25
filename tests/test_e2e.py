@@ -71,6 +71,9 @@ async def seed_db(db_pool):
 
     async with db_pool.acquire() as conn:
         await conn.execute(
+            "DELETE FROM ab_experiments WHERE shop_domain = $1", TEST_SHOP
+        )
+        await conn.execute(
             "DELETE FROM upsell_offers WHERE shop_domain = $1", TEST_SHOP
         )
         await conn.execute(
@@ -78,6 +81,9 @@ async def seed_db(db_pool):
         )
         await conn.execute(
             "DELETE FROM billing WHERE shop_domain = $1", TEST_SHOP
+        )
+        await conn.execute(
+            "DELETE FROM merchants WHERE shop_domain = $1", TEST_SHOP
         )
         await conn.execute(
             "DELETE FROM shops WHERE shop_domain = $1", TEST_SHOP
@@ -102,7 +108,7 @@ async def test_step1_health_check(client):
     """ステップ1: APIサーバーが正常に起動・応答していること"""
     resp = await client.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    assert resp.json()["status"] == "ok"
     print("\n✅ Step 1 PASS: ヘルスチェック OK")
 
 

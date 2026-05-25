@@ -14,6 +14,21 @@ from src.db.session import get_db_dep
 router = APIRouter(prefix="/merchants", tags=["merchants"])
 
 
+@router.get("")
+async def list_merchants(db=Depends(get_db_dep)):
+    """n8n ワークフローなどが使う全アクティブショップ一覧"""
+    rows = await db.fetch(
+        """
+        SELECT s.shop_domain, s.owner_email, m.plan
+        FROM shops s
+        LEFT JOIN merchants m ON s.shop_domain = m.shop_domain
+        WHERE s.active = true
+        ORDER BY s.created_at DESC
+        """
+    )
+    return [dict(r) for r in rows]
+
+
 @router.get("/{shop_domain}")
 async def get_merchant(shop_domain: str, db=Depends(get_db_dep)):
     """マーチャント設定を返す（未作成なら自動作成）"""

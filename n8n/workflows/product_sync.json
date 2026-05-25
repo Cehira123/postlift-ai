@@ -1,0 +1,94 @@
+{
+  "name": "PostLift AI — 商品自動同期",
+  "description": "1時間ごとに全アクティブショップの商品・在庫をShopify Admin APIから同期する",
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "毎時トリガー",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      }
+    },
+    {
+      "id": "get_shops",
+      "name": "アクティブショップ取得",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.POSTLIFT_APP_URL }}/merchants/list",
+        "authentication": "none",
+        "responseFormat": "json"
+      }
+    },
+    {
+      "id": "split_shops",
+      "name": "ショップを分割",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [720, 300],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "sync_products",
+      "name": "商品同期実行",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.POSTLIFT_APP_URL }}/products/sync",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "shop_domain", "value": "={{ $json.shop_domain }}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      }
+    },
+    {
+      "id": "log_result",
+      "name": "結果をログ",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1200, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "shop_domain", "value": "={{ $('split_shops').item.json.shop_domain }}", "type": "string" },
+            { "id": "2", "name": "synced",      "value": "={{ $json.synced }}",      "type": "number" },
+            { "id": "3", "name": "synced_at",   "value": "={{ $now }}",             "type": "string" }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "毎時トリガー":         { "main": [[{ "node": "アクティブショップ取得", "type": "main", "index": 0 }]] },
+    "アクティブショップ取得": { "main": [[{ "node": "ショップを分割",       "type": "main", "index": 0 }]] },
+    "ショップを分割":        { "main": [[{ "node": "商品同期実行",         "type": "main", "index": 0 }]] },
+    "商品同期実行":          { "main": [[{ "node": "結果をログ",           "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["postlift", "shopify", "sync"],
+  "env": {
+    "POSTLIFT_APP_URL": "https://your-app.replit.app"
+  }
+}

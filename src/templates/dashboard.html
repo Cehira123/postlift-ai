@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostLift AI — ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f0f2f5; color: #1a1a2e; }
+  header { background: #1a1a2e; color: #fff; padding: 16px 24px;
+           display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 1.2em; font-weight: 700; letter-spacing: -0.5px; }
+  header .shop { font-size: 0.85em; color: #a0aec0; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: #fff; border-radius: 12px; padding: 20px 24px;
+              box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .kpi-card .label { font-size: 0.78em; color: #718096; font-weight: 600;
+                     text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+  .kpi-card .value { font-size: 2em; font-weight: 700; color: #2d3748; line-height: 1; }
+  .kpi-card .sub { font-size: 0.8em; color: #48bb78; margin-top: 6px; }
+  .kpi-card.accent .value { color: #3b5bdb; }
+  .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card { background: #fff; border-radius: 12px; padding: 20px 24px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .chart-card h2 { font-size: 0.9em; font-weight: 700; color: #4a5568;
+                   margin-bottom: 16px; text-transform: uppercase; letter-spacing: .04em; }
+  .table-card { background: #fff; border-radius: 12px; padding: 20px 24px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 24px; }
+  .table-card h2 { font-size: 0.9em; font-weight: 700; color: #4a5568;
+                   margin-bottom: 16px; text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+  thead th { text-align: left; padding: 8px 12px; font-size: 0.78em; color: #718096;
+             font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; color: #2d3748; }
+  tbody tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 100px;
+           font-size: 0.78em; font-weight: 600; }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-yellow { background: #fefcbf; color: #744210; }
+  .badge-red { background: #fed7d7; color: #742a2a; }
+  .bar-wrap { background: #e2e8f0; border-radius: 100px; height: 6px; width: 100px; display:inline-block; }
+  .bar-fill { background: #3b5bdb; height: 6px; border-radius: 100px; }
+  .loading { text-align: center; padding: 40px; color: #a0aec0; }
+  .ab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ab-box { background: #f7fafc; border-radius: 8px; padding: 14px 16px; text-align: center; }
+  .ab-box .variant { font-size: 1.6em; font-weight: 700; }
+  .ab-box.winner { background: #ebf8ff; border: 2px solid #90cdf4; }
+  .ab-rate { font-size: 0.9em; color: #4a5568; margin-top: 4px; }
+  .p-badge { display: inline-block; padding: 4px 10px; border-radius: 6px;
+             font-size: 0.82em; font-weight: 600; margin-top: 10px; }
+  .significant { background: #c6f6d5; color: #276749; }
+  .not-significant { background: #fefcbf; color: #744210; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📈 PostLift AI Dashboard</h1>
+  <span class="shop" id="shopLabel">{{ shop_domain }}</span>
+</header>
+
+<div class="container">
+  <!-- KPI カード -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card loading">データ読み込み中…</div>
+  </div>
+
+  <!-- トレンドグラフ + 承諾率円グラフ -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>日次トレンド（過去 30 日）</h2>
+      <canvas id="trendChart" height="120"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>A/B テスト結果</h2>
+      <div id="abResults"><div class="loading">読み込み中…</div></div>
+    </div>
+  </div>
+
+  <!-- 商品別ランキング -->
+  <div class="table-card">
+    <h2>商品別パフォーマンス（過去 30 日）</h2>
+    <div id="productTable"><div class="loading">読み込み中…</div></div>
+  </div>
+</div>
+
+<script>
+const SHOP = "{{ shop_domain }}";
+const BASE = "";
+
+async function fetchJson(path) {
+  try {
+    const r = await fetch(BASE + path);
+    if (!r.ok) return null;
+    return r.json();
+  } catch { return null; }
+}
+
+function rateBadge(rate) {
+  const n = parseFloat(rate) || 0;
+  const cls = n >= 20 ? "badge-green" : n >= 10 ? "badge-yellow" : "badge-red";
+  return `<span class="badge ${cls}">${n}%</span>`;
+}
+
+function barHtml(rate) {
+  const w = Math.min(parseFloat(rate) || 0, 100);
+  return `<div class="bar-wrap"><div class="bar-fill" style="width:${w}%"></div></div>`;
+}
+
+// --- KPI サマリー ---
+async function loadKpi() {
+  const d = await fetchJson(`/metrics/summary?shop_domain=${SHOP}`);
+  if (!d) return;
+  const grid = document.getElementById("kpiGrid");
+  const fmtCurrency = v => `¥${Number(v || 0).toLocaleString("ja-JP", {maximumFractionDigits:0})}`;
+  grid.innerHTML = `
+    <div class="kpi-card">
+      <div class="label">オファー表示数</div>
+      <div class="value">${d.total_offers || 0}</div>
+      <div class="sub">過去 30 日間</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">承諾数</div>
+      <div class="value">${d.accepted_offers || 0}</div>
+      <div class="sub">過去 30 日間</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="label">承諾率</div>
+      <div class="value">${d.accept_rate_pct || 0}%</div>
+      <div class="sub">業界平均: 約 10–15%</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="label">追加売上</div>
+      <div class="value">${fmtCurrency(d.extra_revenue)}</div>
+      <div class="sub">過去 30 日間</div>
+    </div>
+  `;
+}
+
+// --- トレンドグラフ ---
+async function loadTrend() {
+  const d = await fetchJson(`/metrics/trend?shop_domain=${SHOP}&days=30`);
+  if (!d || !d.length) return;
+  const labels = d.map(r => r.date);
+  const rates  = d.map(r => parseFloat(r.accept_rate_pct) || 0);
+  const revs   = d.map(r => parseFloat(r.extra_revenue) || 0);
+
+  const ctx = document.getElementById("trendChart").getContext("2d");
+  new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: "line",
+          label: "承諾率 (%)",
+          data: rates,
+          borderColor: "#3b5bdb",
+          backgroundColor: "rgba(59,91,219,.1)",
+          yAxisID: "yRate",
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3,
+        },
+        {
+          type: "bar",
+          label: "追加売上 (¥)",
+          data: revs,
+          backgroundColor: "rgba(72,187,120,.5)",
+          borderColor: "#48bb78",
+          borderWidth: 1,
+          yAxisID: "yRev",
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { position: "bottom" } },
+      scales: {
+        yRate: {
+          type: "linear", position: "left",
+          title: { display: true, text: "承諾率 (%)" },
+          min: 0,
+        },
+        yRev: {
+          type: "linear", position: "right",
+          title: { display: true, text: "売上 (¥)" },
+          grid: { drawOnChartArea: false },
+          min: 0,
+        }
+      }
+    }
+  });
+}
+
+// --- 商品別テーブル ---
+async function loadProducts() {
+  const d = await fetchJson(`/metrics/products?shop_domain=${SHOP}&days=30`);
+  const el = document.getElementById("productTable");
+  if (!d || !d.length) {
+    el.innerHTML = "<p style='color:#a0aec0;text-align:center;padding:20px'>データなし</p>";
+    return;
+  }
+  const rows = d.map(r => `
+    <tr>
+      <td>${r.title || r.product_id}</td>
+      <td>${r.total_offers}</td>
+      <td>${rateBadge(r.accept_rate_pct)}</td>
+      <td>${barHtml(r.accept_rate_pct)}</td>
+      <td>¥${Number(r.extra_revenue).toLocaleString("ja-JP",{maximumFractionDigits:0})}</td>
+      <td>${r.avg_ai_score ? parseFloat(r.avg_ai_score).toFixed(3) : "—"}</td>
+    </tr>
+  `).join("");
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>商品名</th>
+          <th>表示数</th>
+          <th>承諾率</th>
+          <th></th>
+          <th>追加売上</th>
+          <th>AI スコア</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// --- A/B テスト結果 ---
+async function loadAb() {
+  const d = await fetchJson(
+    `/ab-tests/results?shop_domain=${SHOP}&experiment_name=copy_variant`
+  );
+  const el = document.getElementById("abResults");
+  if (!d) {
+    el.innerHTML = "<p style='color:#a0aec0;text-align:center;padding:20px'>データなし</p>";
+    return;
+  }
+  const A = d.A || {};
+  const B = d.B || {};
+  const winA = d.winner === "A";
+  const winB = d.winner === "B";
+  el.innerHTML = `
+    <div class="ab-grid">
+      <div class="ab-box ${winA ? "winner" : ""}">
+        <div class="variant" style="color:#3b5bdb">A</div>
+        <div class="ab-rate">${A.total || 0} 表示 / ${A.conversions || 0} 承諾</div>
+        <div class="ab-rate"><strong>${A.rate_pct || 0}%</strong></div>
+        ${winA ? '<div style="font-size:.8em;color:#276749;margin-top:6px">🏆 勝者</div>' : ""}
+      </div>
+      <div class="ab-box ${winB ? "winner" : ""}">
+        <div class="variant" style="color:#e53e3e">B</div>
+        <div class="ab-rate">${B.total || 0} 表示 / ${B.conversions || 0} 承諾</div>
+        <div class="ab-rate"><strong>${B.rate_pct || 0}%</strong></div>
+        ${winB ? '<div style="font-size:.8em;color:#276749;margin-top:6px">🏆 勝者</div>' : ""}
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:12px">
+      <span class="p-badge ${d.significant ? "significant" : "not-significant"}">
+        ${d.message}
+      </span>
+    </div>
+  `;
+}
+
+// 全データ読み込み
+Promise.all([loadKpi(), loadTrend(), loadProducts(), loadAb()]);
+</script>
+</body>
+</html>
