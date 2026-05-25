@@ -3,6 +3,7 @@ PostLift AI — FastAPI エントリポイント
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from src.api.billing import router as billing_router
 from src.api.metrics import router as metrics_router
@@ -38,6 +39,11 @@ app.include_router(auth_router)
 app.include_router(webhook_router)
 app.include_router(billing_router)
 app.include_router(metrics_router)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
