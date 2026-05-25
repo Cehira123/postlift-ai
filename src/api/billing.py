@@ -68,7 +68,7 @@ async def create_recurring_charge(
 @router.get("/start")
 async def billing_start(
     shop_domain: str = Query(...),
-    plan: str = Query("starter", regex="^(starter|growth|scale)$"),
+    plan: str = Query("starter", pattern="^(starter|growth|scale)$"),
     db=Depends(get_db_dep),
 ):
     """

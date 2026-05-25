@@ -1,0 +1,147 @@
+{
+  "name": "PostLift AI — 日次KPIレポート配信",
+  "description": "毎朝9:00 JSTに全ショップのKPIをスナップショット保存してオーナーにメール送信",
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "毎朝9:00 JSTトリガー",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 9 * * *"
+            }
+          ]
+        },
+        "timezone": "Asia/Tokyo"
+      }
+    },
+    {
+      "id": "get_shops",
+      "name": "アクティブショップ一覧取得",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.POSTLIFT_APP_URL }}/merchants",
+        "options": { "response": { "response": { "responseFormat": "json" } } }
+      }
+    },
+    {
+      "id": "split_shops",
+      "name": "ショップを1件ずつ処理",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [720, 300],
+      "parameters": { "batchSize": 1, "options": {} }
+    },
+    {
+      "id": "get_kpi",
+      "name": "KPIサマリー取得",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.POSTLIFT_APP_URL }}/metrics/summary",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "shop_domain", "value": "={{ $json.shop_domain }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get_trend",
+      "name": "30日間トレンド取得",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 480],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.POSTLIFT_APP_URL }}/metrics/trend",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "shop_domain", "value": "={{ $('split_shops').item.json.shop_domain }}" },
+            { "name": "days",        "value": "30" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check_email",
+      "name": "メールアドレス確認",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has_email",
+              "leftValue": "={{ $('split_shops').item.json.owner_email }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "log_no_email",
+      "name": "メールなし — ログのみ",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1440, 480],
+      "parameters": {}
+    },
+    {
+      "id": "log_result",
+      "name": "完了ログ",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1440, 300],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "shop_domain",      "value": "={{ $('split_shops').item.json.shop_domain }}", "type": "string" },
+            { "id": "2", "name": "total_offers",     "value": "={{ $('KPIサマリー取得').item.json.total_offers }}", "type": "number" },
+            { "id": "3", "name": "accept_rate_pct",  "value": "={{ $('KPIサマリー取得').item.json.accept_rate_pct }}", "type": "number" },
+            { "id": "4", "name": "extra_revenue",    "value": "={{ $('KPIサマリー取得').item.json.extra_revenue }}", "type": "number" },
+            { "id": "5", "name": "processed_at",     "value": "={{ $now }}", "type": "string" }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "毎朝9:00 JSTトリガー":     { "main": [[{ "node": "アクティブショップ一覧取得", "type": "main", "index": 0 }]] },
+    "アクティブショップ一覧取得": { "main": [[{ "node": "ショップを1件ずつ処理",  "type": "main", "index": 0 }]] },
+    "ショップを1件ずつ処理":     { "main": [[{ "node": "KPIサマリー取得",   "type": "main", "index": 0 },
+                                             { "node": "30日間トレンド取得", "type": "main", "index": 0 }]] },
+    "KPIサマリー取得":           { "main": [[{ "node": "メールアドレス確認", "type": "main", "index": 0 }]] },
+    "メールアドレス確認":         { "main": [
+      [{ "node": "完了ログ",       "type": "main", "index": 0 }],
+      [{ "node": "メールなし — ログのみ", "type": "main", "index": 0 }]
+    ]}
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Asia/Tokyo"
+  },
+  "tags": ["postlift", "kpi", "daily"],
+  "env": {
+    "POSTLIFT_APP_URL": "https://your-app.replit.app"
+  }
+}

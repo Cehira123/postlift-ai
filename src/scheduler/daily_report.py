@@ -4,6 +4,7 @@ APScheduler を使い毎朝 9:00 JST に:
   1. 全ショップの前日 KPI を kpi_snapshots テーブルに保存
   2. 承諾率が低い商品の accept_rate を更新（自動抑制）
   3. オーナーへ KPI メール送信
+  4. 期限切れオファーを自動クローズ
 """
 import asyncio
 from datetime import date, timedelta
@@ -61,7 +62,6 @@ async def take_kpi_snapshot(db, shop_domain: str) -> dict:
 async def suppress_low_accept_rate(db, shop_domain: str) -> int:
     """
     過去 30 日間の商品ごとの承諾率を再計算して products.accept_rate を更新する。
-    承諾率が低い商品は自動的に accept_rate が下がり、次回スコアリングで優先度が下がる。
     """
     result = await db.execute(
         """
@@ -90,7 +90,39 @@ async def suppress_low_accept_rate(db, shop_domain: str) -> int:
         return 0
 
 
+async def expire_stale_offers(db) -> int:
+    """
+    24 時間以上経過して未回答のオファーを自動的に期限切れ（accepted=false）にする。
+    これにより A/B テストやメトリクスの集計精度が向上する。
+    """
+    result = await db.execute(
+        """
+        UPDATE upsell_offers
+        SET accepted = false,
+            responded_at = NOW()
+        WHERE accepted IS NULL
+          AND (
+            expires_at IS NOT NULL AND expires_at < NOW()
+            OR
+            expires_at IS NULL AND created_at < NOW() - INTERVAL '24 hours'
+          )
+        """
+    )
+    try:
+        expired = int((result or "UPDATE 0").split()[-1])
+    except (ValueError, IndexError):
+        expired = 0
+
+    if expired:
+        print(f"[scheduler] expired {expired} stale offers")
+    return expired
+
+
 async def _run_daily_reports() -> None:
+    # 期限切れオファーをまず処理
+    async with get_db() as db:
+        await expire_stale_offers(db)
+
     async with get_db() as db:
         shops = await db.fetch(
             "SELECT shop_domain, owner_email FROM shops WHERE active = true"
