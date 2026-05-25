@@ -94,7 +94,17 @@ async def build_offer(
     # スコアリングして最上位を選択
     best = max(
         candidates,
-        key=lambda c: _score(c["gross_margin"] / 100, c["stock_qty"], c["accept_rate"]),
+        key=lambda c: _score(
+            float(c["gross_margin"]) / 100,
+            int(c["stock_qty"]),
+            float(c["accept_rate"]),
+        ),
+    )
+
+    score = _score(
+        float(best["gross_margin"]) / 100,
+        int(best["stock_qty"]),
+        float(best["accept_rate"]),
     )
 
     copy_text = await _generate_copy(best["title"], ordered_titles)
@@ -111,16 +121,16 @@ async def build_offer(
         str(order["id"]),
         best["product_id"],
         float(best["price"]),
-        best["gross_margin"],
-        best["stock_qty"],
-        _score(best["gross_margin"] / 100, best["stock_qty"], best["accept_rate"]),
+        float(best["gross_margin"]),
+        int(best["stock_qty"]),
+        score,
     )
 
     return {
         "offer_id": offer_id,
         "product_id": best["product_id"],
         "title": best["title"],
-        "price": best["price"],
+        "price": float(best["price"]),
         "copy": copy_text,
-        "score": _score(best["gross_margin"] / 100, best["stock_qty"], best["accept_rate"]),
+        "score": score,
     }

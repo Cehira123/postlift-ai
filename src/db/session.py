@@ -23,6 +23,15 @@ async def close_pool() -> None:
 
 @asynccontextmanager
 async def get_db():
+    """直接 async with get_db() as db: で使う用"""
+    if _pool is None:
+        await init_pool()
+    async with _pool.acquire() as conn:
+        yield conn
+
+
+async def get_db_dep():
+    """FastAPI Depends() で使う用の非同期ジェネレータ"""
     if _pool is None:
         await init_pool()
     async with _pool.acquire() as conn:

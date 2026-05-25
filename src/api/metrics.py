@@ -4,13 +4,13 @@ GET /metrics/summary  →  ショップ別の売上・承諾率サマリーを�
 """
 from fastapi import APIRouter, Depends
 
-from src.db.session import get_db
+from src.db.session import get_db_dep
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
 @router.get("/summary")
-async def get_summary(shop_domain: str, db=Depends(get_db)):
+async def get_summary(shop_domain: str, db=Depends(get_db_dep)):
     """
     直近30日間のアップセル承諾率・追加売上を集計して返す。
     """
