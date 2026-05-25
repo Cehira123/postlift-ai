@@ -223,25 +223,107 @@ async def test_step4_no_candidates(client):
 # ──────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_step5_metrics_summary(client, db_pool):
-    """ステップ5: 承諾後のメトリクスAPIが正しい集計を返すこと"""
+async def test_step5_upsell_respond_accept(client, db_pool):
+    """ステップ5: オファー承諾を記録 → DBに accepted=true が保存される"""
     async with db_pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE upsell_offers SET accepted = true WHERE shop_domain = $1",
+        row = await conn.fetchrow(
+            "SELECT id_str FROM upsell_offers WHERE shop_domain = $1 ORDER BY created_at DESC LIMIT 1",
             TEST_SHOP,
         )
+    assert row is not None, "Step2でオファーが作成されていない"
+    offer_id = row["id_str"]
 
+    resp = await client.post(
+        "/webhooks/upsell/respond",
+        json={"offer_id": offer_id, "accepted": True},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["offer_id"] == offer_id
+    assert data["accepted"] is True
+    assert data["status"] == "recorded"
+
+    async with db_pool.acquire() as conn:
+        updated = await conn.fetchrow(
+            "SELECT accepted, responded_at FROM upsell_offers WHERE id_str = $1",
+            offer_id,
+        )
+    assert updated["accepted"] is True
+    assert updated["responded_at"] is not None
+    print(f"\n✅ Step 5 PASS: 承諾記録 OK (offer_id={offer_id})")
+
+
+@pytest.mark.asyncio
+async def test_step6_upsell_respond_reject(client, db_pool):
+    """ステップ6: オファー拒否を記録 → DBに accepted=false が保存される"""
+    order_payload = {
+        "id": 9990004,
+        "line_items": [{"product_id": "other-prod-888", "title": "抹茶ラテ"}],
+    }
+    body = json.dumps(order_payload).encode()
+    hmac_header = make_hmac(TEST_SECRET, body)
+
+    mock_choice = MagicMock()
+    mock_choice.message.content = "ぜひ試してみてください"
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    with patch("src.api.shopify_webhook.SHOPIFY_WEBHOOK_SECRET", TEST_SECRET), \
+         patch("openai.ChatCompletion.acreate", new=AsyncMock(return_value=mock_response)):
+        resp = await client.post(
+            "/webhooks/orders/paid",
+            content=body,
+            headers={
+                "X-Shopify-Hmac-Sha256": hmac_header,
+                "X-Shopify-Shop-Domain": TEST_SHOP,
+                "Content-Type": "application/json",
+            },
+        )
+    assert resp.status_code == 200
+    new_offer_id = resp.json()["offer_id"]
+    assert new_offer_id is not None
+
+    resp = await client.post(
+        "/webhooks/upsell/respond",
+        json={"offer_id": new_offer_id, "accepted": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["accepted"] is False
+
+    async with db_pool.acquire() as conn:
+        updated = await conn.fetchrow(
+            "SELECT accepted FROM upsell_offers WHERE id_str = $1", new_offer_id
+        )
+    assert updated["accepted"] is False
+    print(f"\n✅ Step 6 PASS: 拒否記録 OK (offer_id={new_offer_id})")
+
+
+@pytest.mark.asyncio
+async def test_step7_respond_not_found(client):
+    """ステップ7: 存在しないoffer_idは404を返す"""
+    resp = await client.post(
+        "/webhooks/upsell/respond",
+        json={"offer_id": "00000000-0000-0000-0000-000000000000", "accepted": True},
+    )
+    assert resp.status_code == 404
+    print("\n✅ Step 7 PASS: 不明offer_id → 404 OK")
+
+
+@pytest.mark.asyncio
+async def test_step8_metrics_summary(client, db_pool):
+    """ステップ8: 承諾・拒否混在時のメトリクスAPIが正しい集計を返すこと"""
     resp = await client.get("/metrics/summary", params={"shop_domain": TEST_SHOP})
     assert resp.status_code == 200
     data = resp.json()
 
-    assert int(data["total_offers"]) >= 1
-    assert int(data["accepted_offers"]) >= 1
-    assert float(data["accept_rate_pct"]) == pytest.approx(100.0)
+    total = int(data["total_offers"])
+    accepted = int(data["accepted_offers"])
+    assert total >= 2
+    assert 0 < accepted < total
     assert float(data["extra_revenue"]) > 0
     print(
-        f"\n✅ Step 5 PASS: メトリクス OK "
-        f"(total={data['total_offers']}, "
-        f"accept={data['accept_rate_pct']}%, "
+        f"\n✅ Step 8 PASS: メトリクス OK "
+        f"(total={total}, accepted={accepted}, "
+        f"accept_rate={data['accept_rate_pct']}%, "
         f"revenue=¥{data['extra_revenue']})"
     )

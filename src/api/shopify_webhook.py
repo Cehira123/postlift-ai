@@ -1,16 +1,20 @@
 """
 Shopify Webhook ハンドラー
-POST /webhooks/orders/paid  →  注文完了後にアップセルオファーをトリガー
+POST /webhooks/orders/paid      →  注文完了後にアップセルオファーをトリガー
+POST /webhooks/upsell/respond   →  顧客の承諾・拒否を記録
 """
 import hashlib
 import hmac
 import json
 import os
+from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel
 
 from src.ai.offer_engine import build_offer
-from src.db.session import get_db
+from src.db.session import get_db, get_db_dep
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -46,3 +50,43 @@ async def orders_paid(
         )
 
     return {"status": "queued", "offer_id": offer["offer_id"]}
+
+
+class UpsellResponse(BaseModel):
+    offer_id: str
+    accepted: bool
+
+
+@router.post("/upsell/respond")
+async def upsell_respond(
+    payload: UpsellResponse,
+    db=Depends(get_db_dep),
+):
+    """
+    顧客がアップセルオファーに承諾・拒否したときの結果を記録する。
+    - accepted=true  → 承諾（追加購入）
+    - accepted=false → 拒否（スキップ）
+    """
+    row = await db.fetchrow(
+        "SELECT id FROM upsell_offers WHERE id_str = $1",
+        payload.offer_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="offer not found")
+
+    await db.execute(
+        """
+        UPDATE upsell_offers
+        SET accepted = $1, responded_at = $2
+        WHERE id_str = $3
+        """,
+        payload.accepted,
+        datetime.now(timezone.utc),
+        payload.offer_id,
+    )
+
+    return {
+        "offer_id": payload.offer_id,
+        "accepted": payload.accepted,
+        "status": "recorded",
+    }
