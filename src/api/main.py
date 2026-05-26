@@ -5,9 +5,8 @@ PostLift AI — FastAPI エントリポイント v3
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
 
 from src.api.ab_test import router as ab_test_router
 from src.api.billing import router as billing_router
@@ -37,12 +36,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PostLift AI",
-    description="Shopify向けAIポスト購入アップセル最適化SaaS",
+    description=(
+        "Shopify 向け AI ポスト購入アップセル最適化 SaaS。\n\n"
+        "注文完了直後に GPT-4o-mini が最適な商品をワンクリックで提案し、承諾率・追加売上を最大化します。\n\n"
+        "**主な機能:** AI スコアリング / A/B テスト自動化 / 顧客 RFM スコアリング / KPI ダッシュボード / GDPR 対応\n\n"
+        "[ダッシュボードを開く](/dashboard) | [トップページ](/)"
+    ),
     version="0.4.0",
     lifespan=lifespan,
+    docs_url="/docs",
 )
 
-# ミドルウェア（登録順に適用: 後から登録したものが外側になる）
+# ミドルウェア（後から登録したものが外側になる）
 app.add_middleware(GlobalErrorHandlerMiddleware)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RateLimitMiddleware)
@@ -67,14 +72,9 @@ app.include_router(dashboard_router)
 app.include_router(proxy_router)
 
 
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse(url="/docs")
-
-
-@app.get("/health")
+@app.get("/health", tags=["システム"], summary="ヘルスチェック（DB 接続確認込み）")
 async def health():
-    """DB 接続を含む詳細ヘルスチェック"""
+    """サーバーと DB の疎通状態を返します。`status: ok` なら正常稼働中です。"""
     try:
         async with get_db() as db:
             await db.fetchval("SELECT 1")

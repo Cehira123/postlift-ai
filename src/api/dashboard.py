@@ -14,6 +14,11 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 router = APIRouter(tags=["dashboard"])
 
 
+@router.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def landing(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, shop_domain: str = "demo.myshopify.com"):
     return templates.TemplateResponse(
