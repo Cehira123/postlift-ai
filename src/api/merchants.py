@@ -72,45 +72,47 @@ async def update_settings(
     粗利閾値・在庫閾値・プランを更新する。
     margin_threshold: 0.0〜1.0（例: 0.30 = 粗利30%未満は除外）
     """
-    updates = []
-    values = []
+    merchant_updates = []
+    merchant_values = []
     idx = 1
 
     if body.margin_threshold is not None:
         if not (0.0 <= body.margin_threshold <= 1.0):
             raise HTTPException(status_code=422, detail="margin_threshold must be 0.0-1.0")
-        updates.append(f"margin_threshold = ${idx}")
-        values.append(body.margin_threshold)
+        merchant_updates.append(f"margin_threshold = ${idx}")
+        merchant_values.append(body.margin_threshold)
         idx += 1
 
     if body.stock_threshold is not None:
         if body.stock_threshold < 0:
             raise HTTPException(status_code=422, detail="stock_threshold must be >= 0")
-        updates.append(f"stock_threshold = ${idx}")
-        values.append(body.stock_threshold)
+        merchant_updates.append(f"stock_threshold = ${idx}")
+        merchant_values.append(body.stock_threshold)
         idx += 1
 
     if body.plan is not None:
         if body.plan not in ("starter", "growth", "scale"):
             raise HTTPException(status_code=422, detail="plan must be starter/growth/scale")
-        updates.append(f"plan = ${idx}")
-        values.append(body.plan)
+        merchant_updates.append(f"plan = ${idx}")
+        merchant_values.append(body.plan)
         idx += 1
 
     if body.owner_email is not None:
-        updates.append(f"updated_at = NOW()")
         await db.execute(
-            f"UPDATE shops SET owner_email = ${idx} WHERE shop_domain = ${idx+1}",
+            "UPDATE shops SET owner_email = $1 WHERE shop_domain = $2",
             body.owner_email, shop_domain,
         )
 
-    if not updates:
+    if not merchant_updates:
+        if body.owner_email is not None:
+            row = await db.fetchrow("SELECT * FROM merchants WHERE shop_domain = $1", shop_domain)
+            return dict(row) if row else {}
         raise HTTPException(status_code=422, detail="no fields to update")
 
-    updates.append("updated_at = NOW()")
-    values.append(shop_domain)
-    query = f"UPDATE merchants SET {', '.join(updates)} WHERE shop_domain = ${idx}"
-    await db.execute(query, *values)
+    merchant_updates.append("updated_at = NOW()")
+    merchant_values.append(shop_domain)
+    query = f"UPDATE merchants SET {', '.join(merchant_updates)} WHERE shop_domain = ${idx}"
+    await db.execute(query, *merchant_values)
 
     row = await db.fetchrow("SELECT * FROM merchants WHERE shop_domain = $1", shop_domain)
     return dict(row)

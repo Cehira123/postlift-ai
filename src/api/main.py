@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.ab_test import router as ab_test_router
 from src.api.billing import router as billing_router
 from src.api.dashboard import router as dashboard_router
+from src.api.demo import router as demo_router
 from src.api.gdpr import router as gdpr_router
 from src.api.merchants import router as merchants_router
 from src.api.metrics import router as metrics_router
@@ -70,6 +71,7 @@ app.include_router(offers_router)
 app.include_router(ab_test_router)
 app.include_router(dashboard_router)
 app.include_router(proxy_router)
+app.include_router(demo_router)
 
 
 @app.get("/health", tags=["システム"], summary="ヘルスチェック（DB 接続確認込み）")

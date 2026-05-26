@@ -23,6 +23,7 @@ async def get_current_offer(
     row = await db.fetchrow(
         """
         SELECT o.id_str, o.product_id, o.upsell_price, o.ai_score,
+               o.copy_text, o.ab_variant,
                p.title, p.gross_margin
         FROM upsell_offers o
         LEFT JOIN products p
@@ -42,6 +43,8 @@ async def get_current_offer(
         "title": row["title"],
         "price": float(row["upsell_price"]),
         "ai_score": float(row["ai_score"]) if row["ai_score"] else None,
+        "copy_text": row["copy_text"],
+        "ab_variant": row["ab_variant"],
     }
 
 

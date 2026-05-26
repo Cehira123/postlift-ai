@@ -25,3 +25,11 @@ async def dashboard(request: Request, shop_domain: str = "demo.myshopify.com"):
         "dashboard.html",
         {"request": request, "shop_domain": shop_domain},
     )
+
+
+@router.get("/settings", response_class=HTMLResponse, include_in_schema=False)
+async def settings_page(request: Request, shop_domain: str = "demo.myshopify.com"):
+    return templates.TemplateResponse(
+        "settings.html",
+        {"request": request, "shop_domain": shop_domain},
+    )
