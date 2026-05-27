@@ -11,7 +11,9 @@ PostLift AI selects the best one-click post-purchase offer after an order is pai
 - PostgreSQL schema for shops, products, offers, billing, KPI snapshots, A/B tests, and customer scores.
 - Daily KPI snapshot and low-performing offer suppression jobs.
 - Docker, Railway, Render, and GitHub Actions configuration.
-- Unit tests for scoring and webhook signature validation.
+- Tests for scoring, Shopify Admin API product mapping, webhook HMAC validation, and the post-purchase offer lifecycle.
+
+For the next development steps, see [Launch Plan](docs/launch-plan.md).
 
 ## Architecture
 
@@ -38,7 +40,7 @@ cp .env.example .env
 uvicorn src.api.main:app --reload --port 5000
 ```
 
-For local development without PostgreSQL, `/health` returns `degraded` and the docs remain available at `/docs`. Database-backed endpoints require `DATABASE_URL`.
+For local development without PostgreSQL, `/health` returns `degraded` and the docs remain available at `/docs`. Metrics endpoints return empty fallback data when no database is configured, while write paths still require `DATABASE_URL`.
 
 ## Required Environment Variables
 
@@ -59,11 +61,13 @@ For local development without PostgreSQL, `/health` returns `degraded` and the d
 pytest
 ```
 
-The database smoke test is opt-in:
+The E2E test runs in-process with a fake database, so it is safe to run locally without PostgreSQL:
 
 ```bash
-RUN_E2E=1 DATABASE_URL=postgresql://... pytest tests/test_e2e.py
+pytest tests/test_e2e.py
 ```
+
+For real deployment validation, run the full flow against a Shopify development store after setting the production environment variables.
 
 ## Deployment Checklist
 
@@ -74,6 +78,8 @@ RUN_E2E=1 DATABASE_URL=postgresql://... pytest tests/test_e2e.py
 5. Deploy the API and confirm `/health` returns `status: ok`.
 6. Build and deploy the Shopify extension.
 7. Run a test order in a Shopify development store and confirm offer creation and acceptance tracking.
+
+Detailed setup order and ownership are documented in [docs/launch-plan.md](docs/launch-plan.md).
 
 ## Pricing Model
 
