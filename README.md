@@ -1,24 +1,53 @@
 # PostLift AI
 
-AI-powered post-purchase upsell optimization for Shopify.
+Self-hosted Shopify post-purchase upsell implementation template.
 
-PostLift AI selects the best one-click post-purchase offer after an order is paid. It ranks products using gross margin, inventory, historical acceptance rate, and customer fit, then generates short conversion copy with an OpenAI model when an API key is configured.
+PostLift AI is packaged as a code product, not as a hosted SaaS and not as a ready-submitted Shopify App Store listing. A buyer can deploy the API to their own hosting account, connect their own Shopify app, run their own database, and adapt the implementation for their own merchant or client project.
 
-## What It Includes
+## What This Code Product Includes
 
-- FastAPI backend for Shopify OAuth, webhooks, offers, products, billing, metrics, and dashboard pages.
+- FastAPI backend for Shopify OAuth, webhooks, offers, products, metrics, and dashboard pages.
 - Shopify post-purchase UI extension scaffold.
-- PostgreSQL schema for shops, products, offers, billing, KPI snapshots, A/B tests, and customer scores.
+- PostgreSQL schema for shops, products, offers, KPI snapshots, A/B tests, and customer scores.
+- Product sync from Shopify Admin API.
+- Offer ranking based on margin, inventory, acceptance history, and customer fit.
+- Optional OpenAI-generated upsell copy when `OPENAI_API_KEY` is configured.
 - Daily KPI snapshot and low-performing offer suppression jobs.
 - Docker, Railway, Render, and GitHub Actions configuration.
-- Tests for scoring, Shopify Admin API product mapping, webhook HMAC validation, and the post-purchase offer lifecycle.
+- Tests for offer scoring, Shopify Admin API product mapping, webhook HMAC validation, and the post-purchase offer lifecycle.
 
-For the next development steps, see [Launch Plan](docs/launch-plan.md).
+## What This Product Is Not
+
+- It is not a managed SaaS operated by this repository owner.
+- It is not legal, privacy, tax, billing, or Shopify compliance advice.
+- It is not a guarantee of Shopify App Store approval.
+- It does not include ongoing merchant support, hosting fees, database fees, or paid API usage.
+- It does not remove the buyer's responsibility for Shopify protected customer data approvals when they use restricted webhooks or customer data.
+
+For buyer-side responsibility boundaries, see [docs/buyer-responsibilities.md](docs/buyer-responsibilities.md).
+
+## Verified Development Flow
+
+The current implementation has been validated against a Shopify development-store style flow:
+
+1. API deploys successfully to a public HTTPS host.
+2. `/health` returns `status: ok` when PostgreSQL is configured.
+3. Shopify app installation redirects through OAuth.
+4. Product sync stores Shopify products, variants, and inventory identifiers.
+5. A signed `orders/paid` webhook can create an upsell offer.
+6. `/offers/current` returns an offer payload for the post-purchase extension.
+7. Accept/decline tracking updates metrics and A/B test records.
+8. Automated tests cover the main local lifecycle.
+
+Real merchant production use still requires the buyer to configure and approve their own Shopify app and data-access settings.
 
 ## Architecture
 
 ```text
-Shopify orders/paid webhook
+Buyer-owned Shopify app
+        |
+        v
+Shopify webhook or test event
         |
         v
 PostLift API -> Product and customer scoring -> Offer persistence
@@ -48,9 +77,9 @@ For local development without PostgreSQL, `/health` returns `degraded` and the d
 | --- | --- |
 | `APP_URL` | Public HTTPS URL for Shopify callbacks and webhook registration. |
 | `DATABASE_URL` | PostgreSQL connection string. |
-| `SHOPIFY_API_KEY` | Shopify app client ID. |
-| `SHOPIFY_API_SECRET` | Shopify app client secret. |
-| `SHOPIFY_WEBHOOK_SECRET` | Secret used to verify webhook HMAC signatures. |
+| `SHOPIFY_API_KEY` | Buyer-owned Shopify app client ID. |
+| `SHOPIFY_API_SECRET` | Buyer-owned Shopify app client secret. |
+| `SHOPIFY_WEBHOOK_SECRET` | Secret used to verify Shopify webhook HMAC signatures. |
 | `OPENAI_API_KEY` | Optional. Enables generated upsell copy. Without it, deterministic fallback copy is used. |
 | `CORS_ORIGINS` | Comma-separated allowed browser origins. |
 | `RUN_SCHEDULER` | Set to `false` to disable daily background jobs. |
@@ -67,27 +96,40 @@ The E2E test runs in-process with a fake database, so it is safe to run locally 
 pytest tests/test_e2e.py
 ```
 
-For real deployment validation, run the full flow against a Shopify development store after setting the production environment variables.
+For public deployment validation:
 
-## Deployment Checklist
+```bash
+python scripts/deployment_smoke.py https://your-public-api-url
+```
 
-1. Create a PostgreSQL database and run `src/db/schema.sql`.
-2. Set every required environment variable on the hosting platform.
-3. Configure Shopify app URLs to point to `APP_URL`.
-4. Register webhook topics for `orders/paid`, `app/uninstalled`, product updates, inventory updates, and customer updates.
-5. Deploy the API and confirm `/health` returns `status: ok`.
-6. Build and deploy the Shopify extension.
-7. Run a test order in a Shopify development store and confirm offer creation and acceptance tracking.
+## Deployment
 
-Detailed setup order and ownership are documented in [docs/launch-plan.md](docs/launch-plan.md).
+1. Create a PostgreSQL database.
+2. Run `src/db/schema.sql`.
+3. Run migrations in `src/db/migrations`.
+4. Set every required environment variable on the hosting platform.
+5. Configure Shopify app URLs to point to `APP_URL`.
+6. Install the app into a development store.
+7. Sync products and run the test webhook flow.
 
-## Pricing Model
+Detailed setup steps are in [docs/self-hosting.md](docs/self-hosting.md) and [docs/deploy.md](docs/deploy.md).
 
-| Plan | Price | Suggested Limit |
-| --- | ---: | --- |
-| Starter | $29/month | Up to 500 offers/month |
-| Growth | $79/month | Up to 5,000 offers/month |
-| Scale | $199/month | Higher-volume merchants |
+## Shopify Data-Access Note
+
+Some real Shopify topics, especially order history, customer-related data, and post-purchase extension access, may require Shopify approvals. A buyer can still evaluate the code with local tests, signed webhook simulation, product sync, and a development-store install. Production use is the buyer's responsibility.
+
+## Suggested Code Product Packaging
+
+Recommended deliverables for selling this as a code product:
+
+- Private repository or downloadable source archive.
+- Setup guide and environment-variable checklist.
+- Railway/Render deployment guide.
+- Test checklist with expected outputs.
+- Buyer-responsibility and data-access notes.
+- Optional paid setup or customization service.
+
+See [docs/code-product-packaging.md](docs/code-product-packaging.md) for package structure and pricing ideas.
 
 ## License
 

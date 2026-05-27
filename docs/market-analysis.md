@@ -1,79 +1,56 @@
-# 市場分析レポート
+# Market Analysis
 
-## エグゼクティブサマリー
+This analysis is for selling PostLift AI as a self-hosted code product.
 
-ECツール市場全体は広すぎて参入しづらい。勝つためには「Shopify + 特定収益メカニズム1つ」に絞ることが必要。
-調査・分析の結果、**Shopify 向けポスト購入ワンクリックアップセルの AI 最適化**が最も勝ちやすい市場と判断した。
+## Why Code Product Positioning Fits
 
----
+Running a public Shopify SaaS creates heavy obligations:
 
-## 評価フレームワーク（7軸）
+- Shopify approval and review.
+- Protected customer data handling.
+- Merchant support.
+- Uptime and incident response.
+- Billing and refunds.
+- Privacy, legal, and contract work.
+- Ongoing infrastructure cost.
 
-| 軸 | 定義 |
-|---|---|
-| 痛みの頻度 | 毎週・毎日発生するか |
-| 金への近さ | 売上/回収/請求に直結するか |
-| 導入速度 | 14日以内に試せるか |
-| 継続性 | 月額課金が自然か、解約されにくいか |
-| 競合密度 | 巨大プレイヤーだけでないか |
-| 実装難易度 | 個人で90日以内にMVPを作れるか |
-| 配布導線 | App Store や業界コミュニティがあるか |
+Selling source code keeps the initial business simpler. The buyer gets implementation value, while the buyer owns the production business context.
 
----
+## Best-Fit Buyer Segments
 
-## 市場比較表
+| Segment | Why It Fits |
+| --- | --- |
+| Shopify developers | They understand how to deploy, modify, and own the app. |
+| Small agencies | They can adapt the code for client projects. |
+| Technical merchants | They may want an internal starting point without paying a SaaS. |
+| Builders | They can learn from a complete Shopify app reference. |
 
-| 候補市場 | 需要 | 収益性 | 競合 | 実装難易度 | 初速 | 総合判定 |
-|---|---|---|---|---|---|---|
-| **Shopify AOV/CVR改善アプリ** | 高・売上直結 | 高・増収価値で課金しやすい | 高いが細分化可能 | 中 | 速い・App Store導線 | ✅ 有力 |
-| 歯科向けリコール自動化 | 高・重要 | 高・低チャーン | 既存専用ソフト多い | 中〜高 | 中 | 🔶 有力だが重い |
-| 建設見積/原価管理 | 高・痛みが深い | 高 | 既存ソフト強い | 高 | 遅い | ⏳ 後回し |
-| 汎用SMB AI自動化 | 広い | バラつく | 汎用競合多い | 低〜中 | 速い | ❌ 差別化弱い |
+## Value Proposition
 
----
+PostLift AI saves buyers time by providing:
 
-## EC内での絞り込み
+- A working backend structure.
+- A database schema.
+- Shopify integration patterns.
+- Offer scoring logic.
+- Test coverage.
+- Deployment instructions.
+- Clear responsibility boundaries.
 
-ECツール全体 → Shopify App Store → AOV/CVR系 → **ポスト購入アップセル**
+## Sales Risks
 
-### AOV改善メカニズム5種
+| Risk | Mitigation |
+| --- | --- |
+| Buyer expects managed SaaS | State "self-hosted source code" in every sales surface. |
+| Buyer expects Shopify approval | Explain approvals are buyer-owned. |
+| Buyer expects legal compliance | Link buyer responsibilities before purchase. |
+| Buyer cannot deploy code | Offer a paid setup-assist tier. |
+| Buyer wants customization | Offer custom implementation as a separate project. |
 
-| メカニズム | 競合 | 個人開発向き |
-|---|---|---|
-| カート内アップセル | 多い | △ |
-| 送料無料閾値 | 多い | △ |
-| バンドル | 多い | △ |
-| **ポスト購入ワンクリックアップセル** | あるが粗利考慮なし多 | ✅ |
-| 保証/保険アドオン | パートナー依存 | △ |
+## Recommended Market Message
 
-### なぜポスト購入アップセルか
+> A self-hosted Shopify post-purchase upsell starter kit for developers and agencies. Includes OAuth, webhooks, product sync, offer scoring, metrics, tests, and deployment docs.
 
-- 購入後なのでストア体験本体を壊しにくい
-- 追加提案の成否が測りやすい
-- 既存競合はルールベース寄りで「粗利補正した AI 提案」は差別化余地あり
-- 価値訴求が明快（AOV uplift が数値で出る）
+## Avoid This Message
 
----
-
-## 競合ポジショニング
-
-```
-高機能・複雑
-     │
-     │  ● Rebuy        ● CartHook
-     │
-─────┼─────────────────────────── → 粗利無視 ─── 粗利考慮
-     │
-     │                    ● PostLift AI（目標ポジション）
-     │
-低機能・シンプル
-```
-
-競合の多くは「とにかく売る」設計。PostLift AI は粗利・在庫・承諾率を加味した提案で差別化する。
-
----
-
-## まとめ
-
-> **第一候補：Shopify 向け AI ポスト購入アップセル最適化アプリ**
-> - 需要明確、ROI が早い、App Store 導線あり、継続課金向き、初期 MVP が小さい
+> A complete zero-work Shopify SaaS that is ready for any merchant immediately.

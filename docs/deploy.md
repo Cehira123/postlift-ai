@@ -1,6 +1,8 @@
 # Deployment Guide
 
-This guide is the practical setup path for getting PostLift AI onto a public HTTPS URL.
+This guide is the practical setup path for getting PostLift AI onto a public HTTPS URL in the buyer's own hosting account.
+
+PostLift AI is a self-hosted code product. The buyer owns the hosting account, database, Shopify app, access approvals, privacy/legal review, and production operations.
 
 Use Railway first if you want the quickest path. Use Render if you prefer Blueprint-style infrastructure from `render.yaml`.
 
@@ -93,7 +95,7 @@ After the API is deployed, open Shopify Partners and set:
 | Allowed redirection URL | `https://your-public-api-url/auth/callback` |
 | Post-purchase extension API URL | `https://your-public-api-url` |
 
-Register these webhook topics:
+Register these webhook topics when your Shopify app has access to them:
 
 - `orders/paid`
 - `app/uninstalled`
@@ -106,6 +108,8 @@ Webhook delivery URL pattern:
 ```text
 https://your-public-api-url/webhooks/orders/paid
 ```
+
+`orders/paid`, customer-related topics, and post-purchase production access may require Shopify protected customer data or extension approval. If those approvals are not available yet, use the automated tests, product sync, and signed webhook simulation to validate the implementation.
 
 ## Smoke Test
 
@@ -122,4 +126,4 @@ This checks:
 - `/metrics/trend`
 - `/metrics/products`
 
-Use a real Shopify development store for the final E2E test. The smoke test only proves that the public API is reachable and basic routes respond.
+Use a real Shopify development store for the final buyer-owned E2E test. The smoke test only proves that the public API is reachable and basic routes respond.

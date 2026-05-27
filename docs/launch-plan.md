@@ -1,120 +1,99 @@
-# PostLift AI Launch Plan
+# Code Product Readiness Plan
 
-This document explains what should happen next before PostLift AI is treated as a public launch candidate.
+PostLift AI is now positioned as a self-hosted code product. The goal is to sell the implementation, docs, and testable deployment flow, while the buyer owns hosting, Shopify approvals, legal obligations, merchant support, and production operations.
 
 ## Current State
 
-PostLift AI already has the core product loop in place:
+The repository already includes the core product loop:
 
-- Shopify OAuth, webhook, offer, product, billing, metrics, and dashboard routes.
-- A post-purchase UI extension scaffold.
-- PostgreSQL schema and a first migration for Shopify variant and inventory identifiers.
-- Tests for the AI offer engine, Shopify Admin API mapping, webhook HMAC validation, and an in-process post-purchase E2E lifecycle.
+- Shopify OAuth, webhook, offer, product, metrics, and dashboard routes.
+- Shopify post-purchase UI extension scaffold.
+- PostgreSQL schema and migration files.
+- Product sync from Shopify Admin API.
+- Offer ranking and fallback/generated copy.
+- Tests for scoring, Admin API mapping, webhook HMAC validation, and E2E offer lifecycle.
 - Docker, Railway, Render, and GitHub Actions configuration.
 
-The project is ready for real Shopify development-store validation, but it is not yet ready for a public Shopify App Store submission.
+This is suitable for packaging as a technical starter kit or implementation template. It should not be marketed as a fully operated SaaS unless a separate business, compliance, support, and hosting operation is created.
 
-## What Codex Can Do Automatically
+## Productization Definition Of Done
 
-Codex can safely continue these tasks in the repository:
+The code product is ready to sell when:
 
-1. Clean the remaining garbled documentation and make all docs consistent.
-2. Add or improve automated tests.
-3. Fix backend bugs found by tests or code review.
-4. Improve dashboard, settings, and onboarding screens.
-5. Add migrations and deployment notes.
-6. Commit and push changes to GitHub when you ask for it.
+1. A buyer can read the README and understand that this is self-hosted source code.
+2. A buyer can follow the self-hosting guide without asking where each credential goes.
+3. The test suite passes from a fresh checkout.
+4. The deployment smoke test works against a public API URL.
+5. The buyer-responsibility document clearly explains what is outside the sale.
+6. Shopify protected-data and post-purchase access requirements are disclosed.
+7. Demo screenshots or a short demo video show product sync, offer creation, and metrics.
 
-Codex can also run local tests and local browser checks when the app starts correctly in this workspace.
+## Selling Scope
 
-## What You Need To Do In Browser Screens
+The sale should include:
 
-Some tasks need your own logged-in accounts and cannot be fully automated from code alone:
+- Source code.
+- Database schema and migrations.
+- Deployment instructions.
+- Shopify app configuration instructions.
+- Test and smoke-test commands.
+- A concise architecture explanation.
+- A clear support boundary.
 
-1. Create or open a Shopify Partners account.
-2. Create a Shopify development store.
-3. Create a Shopify app and copy the client ID, client secret, and webhook secret.
-4. Deploy the API to a public HTTPS URL such as Railway or Render.
-5. Add the deployed `APP_URL` to Shopify app settings.
-6. Add production environment variables on the hosting service.
-7. Install the app into the development store and place a real test order.
+The sale should not promise:
 
-These steps are normal. They involve private account screens, payment/test-store screens, and generated secrets.
+- Shopify App Store approval.
+- Legal compliance for the buyer's jurisdiction.
+- Live merchant support.
+- Hosting, database, email, OpenAI, or Shopify costs.
+- Revenue uplift guarantees.
+- Access to protected Shopify customer data without Shopify approval.
 
-## Recommended Next Milestone
+## Practical Next Steps
 
-The next milestone should be: "Development store flow works end to end."
+### Phase 1: Documentation Packaging
 
-Definition of done:
+- Keep README focused on self-hosted code-product use.
+- Maintain [self-hosting.md](self-hosting.md) as the main setup path.
+- Maintain [buyer-responsibilities.md](buyer-responsibilities.md) as the boundary document.
+- Maintain [code-product-packaging.md](code-product-packaging.md) for sales tiers and deliverables.
 
-1. The app installs into a Shopify development store.
-2. Shopify redirects through OAuth and stores the shop.
-3. Product sync stores Shopify variant IDs and inventory item IDs.
-4. An `orders/paid` webhook creates an upsell offer.
-5. The post-purchase extension requests `/offers/current` and receives a valid `variant_id`.
-6. Accepting or declining the offer records the response.
-7. Dashboard metrics show the test data.
-8. `pytest` passes after any changes.
+### Phase 2: Demo Proof
 
-Do not start App Store submission work until this milestone is green.
+- Record or capture the flow:
+  - API health check.
+  - Product sync.
+  - Signed webhook offer creation.
+  - `/offers/current` response.
+  - Accept/decline tracking.
+  - Metrics update.
+- Avoid showing secrets, database URLs, access tokens, or real customer information.
 
-## Practical Order Of Work
+### Phase 3: Buyer Experience
 
-### Phase 1: Repository Polish
+- Add a `docs/troubleshooting.md` file if repeated setup issues appear.
+- Add a sample `.env.local.example` for local-only testing if needed.
+- Keep test commands short and repeatable.
+- Keep deployment docs provider-neutral where possible.
 
-- Replace remaining garbled docs with clean English or Japanese docs.
-- Review security-sensitive OAuth and webhook code.
-- Keep CI passing on every push.
+### Phase 4: Optional Hardening
 
-### Phase 2: Deployment Setup
+These are useful if the product is sold at a higher price:
 
-- Choose one host first. Railway is the easiest starting point if you want speed.
-- Create PostgreSQL on the same host.
-- Run `src/db/schema.sql` and migrations.
-- Set environment variables from `.env.example`.
-- Confirm `/health` returns `{"status":"ok"}` after `DATABASE_URL` is set.
+- Persist and verify OAuth `state`.
+- Add dashboard empty, loading, and error states.
+- Add a recorded Shopify Admin API integration test.
+- Add clearer extension deployment instructions.
+- Add log redaction for secrets and access tokens.
+- Add backup/restore notes for PostgreSQL.
 
-Follow the detailed steps in [Deployment Guide](deploy.md).
+## Session Rule
 
-### Phase 3: Shopify Connection
-
-- Create the Shopify app in Shopify Partners.
-- Set app URL and callback URL to the deployed HTTPS URL.
-- Register required webhook topics.
-- Install the app into a development store.
-- Sync products and confirm variants are stored.
-
-### Phase 4: Real E2E
-
-- Place a test order.
-- Confirm the `orders/paid` webhook creates an offer.
-- Open the post-purchase extension flow.
-- Accept one offer and decline one offer.
-- Confirm metrics and A/B records update.
-
-### Phase 5: Launch Readiness
-
-- Add merchant-facing onboarding.
-- Improve billing plan enforcement.
-- Add privacy, uninstall, and data-retention documentation.
-- Add operational monitoring and alerting.
-- Prepare Shopify App Store listing assets only after the development-store flow is stable.
-
-## Most Important Next Code Improvements
-
-1. Persist and verify OAuth `state` to harden Shopify install security.
-2. Replace placeholder extension API URL handling with environment-driven configuration.
-3. Add a real product sync integration test using recorded or mocked Shopify Admin API responses.
-4. Add dashboard empty, loading, and error states.
-5. Add a deployment smoke-test command that checks health, metrics fallback, and webhook validation.
-
-## Simple Rule
-
-For now, every development session should end with:
+Every development session should end with:
 
 ```bash
 pytest
 git status
 ```
 
-If tests pass and the intended files are changed, commit and push to GitHub.
+If the intended files changed and tests pass, commit and push to GitHub.

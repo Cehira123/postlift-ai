@@ -1,10 +1,11 @@
 """
-Shopify GDPR Mandatory Webhooks
-Shopify App Store 掲載に必須の 3 エンドポイント。
-POST /webhooks/customers/redact        → 顧客データ削除
-POST /webhooks/customers/data_request  → 顧客データ開示リクエスト
-POST /webhooks/shop/redact             → ショップデータ削除
+Shopify privacy webhooks for self-hosted deployments.
+
+POST /webhooks/customers/redact
+POST /webhooks/customers/data_request
+POST /webhooks/shop/redact
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -20,7 +21,6 @@ SHOPIFY_WEBHOOK_SECRET = os.getenv("SHOPIFY_WEBHOOK_SECRET", "")
 
 
 def _verify(body: bytes, hmac_header: str) -> bool:
-    import base64
     digest = hmac.new(
         SHOPIFY_WEBHOOK_SECRET.encode(), body, hashlib.sha256
     ).hexdigest()
@@ -34,10 +34,7 @@ async def customers_redact(
     request: Request,
     x_shopify_hmac_sha256: str = Header(...),
 ):
-    """
-    顧客から自身のデータ削除を Shopify が要求するときに呼ばれる。
-    該当顧客に紐づくスコア・オファー履歴を匿名化する。
-    """
+    """Delete stored customer score data and anonymize offer history."""
     body = await request.body()
     if not _verify(body, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="HMAC mismatch")
@@ -51,15 +48,15 @@ async def customers_redact(
         return {"status": "no_action"}
 
     async with get_db() as db:
-        # 顧客スコアを削除
         await db.execute(
             "DELETE FROM customer_scores WHERE shop_domain=$1 AND customer_id=$2",
-            shop_domain, customer_id,
+            shop_domain,
+            customer_id,
         )
-        # オファー履歴の customer_id を匿名化
         await db.execute(
             "UPDATE upsell_offers SET customer_id=NULL WHERE shop_domain=$1 AND customer_id=$2",
-            shop_domain, customer_id,
+            shop_domain,
+            customer_id,
         )
 
     return {"status": "deleted", "customer_id": customer_id}
@@ -70,10 +67,7 @@ async def customers_data_request(
     request: Request,
     x_shopify_hmac_sha256: str = Header(...),
 ):
-    """
-    顧客が自身のデータ開示を Shopify に要求したときに呼ばれる。
-    保持しているデータのサマリーを返す（実際の通知は店舗オーナーへ）。
-    """
+    """Return a summary of customer-linked data held by this deployment."""
     body = await request.body()
     if not _verify(body, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="HMAC mismatch")
@@ -88,11 +82,13 @@ async def customers_data_request(
         async with get_db() as db:
             score_row = await db.fetchrow(
                 "SELECT * FROM customer_scores WHERE shop_domain=$1 AND customer_id=$2",
-                shop_domain, customer_id,
+                shop_domain,
+                customer_id,
             )
             offer_count = await db.fetchval(
                 "SELECT COUNT(*) FROM upsell_offers WHERE shop_domain=$1 AND customer_id=$2",
-                shop_domain, customer_id,
+                shop_domain,
+                customer_id,
             )
         if score_row:
             data_held.append("customer_rfm_score")
@@ -107,10 +103,7 @@ async def shop_redact(
     request: Request,
     x_shopify_hmac_sha256: str = Header(...),
 ):
-    """
-    ショップがアプリをアンインストールして 48 時間後に Shopify が呼ぶ。
-    該当ショップの全データを完全削除する。
-    """
+    """Delete all stored data for a shop after uninstall or erasure request."""
     body = await request.body()
     if not _verify(body, x_shopify_hmac_sha256):
         raise HTTPException(status_code=401, detail="HMAC mismatch")
@@ -122,7 +115,6 @@ async def shop_redact(
         return {"status": "no_action"}
 
     async with get_db() as db:
-        # 依存関係の逆順に削除
         await db.execute("DELETE FROM ab_experiments   WHERE shop_domain=$1", shop_domain)
         await db.execute("DELETE FROM kpi_snapshots    WHERE shop_domain=$1", shop_domain)
         await db.execute("DELETE FROM upsell_offers    WHERE shop_domain=$1", shop_domain)

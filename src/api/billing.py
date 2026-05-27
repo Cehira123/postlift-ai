@@ -1,8 +1,8 @@
 """
-Shopify Billing API
-- App インストール時に課金プランを作成
-- /billing/start   →  課金フローを開始して Shopify の承認 URL を返す
-- /billing/confirm →  Shopify の承認コールバックを受け取り charge を activate
+Optional Shopify Billing API helpers.
+
+Self-hosted buyers can leave these routes unused. They are provided for buyers
+who later choose to turn their own deployment into a paid Shopify app.
 """
 import os
 from datetime import datetime, timezone
@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.db.session import get_db, get_db_dep
+from src.db.session import get_db_dep
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -18,9 +18,9 @@ SHOPIFY_API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2024-04")
 APP_URL = os.getenv("APP_URL", "https://your-app.com")
 
 PLANS = {
-    "starter": {"name": "PostLift AI — Starter", "price": "29.00"},
-    "growth":  {"name": "PostLift AI — Growth",  "price": "79.00"},
-    "scale":   {"name": "PostLift AI — Scale",   "price": "199.00"},
+    "starter": {"name": "PostLift AI - Starter", "price": "29.00"},
+    "growth": {"name": "PostLift AI - Growth", "price": "79.00"},
+    "scale": {"name": "PostLift AI - Scale", "price": "199.00"},
 }
 
 
@@ -41,9 +41,7 @@ async def create_recurring_charge(
     access_token: str,
     plan: str = "starter",
 ) -> str:
-    """
-    Shopify に月額課金レコードを作成し、承認 URL を返す。
-    """
+    """Create a Shopify recurring charge and return the approval URL."""
     if plan not in PLANS:
         raise ValueError(f"unknown plan: {plan}")
 
@@ -71,9 +69,7 @@ async def billing_start(
     plan: str = Query("starter", pattern="^(starter|growth|scale)$"),
     db=Depends(get_db_dep),
 ):
-    """
-    課金フローを開始する。Shopify の承認 URL にリダイレクトさせる URL を返す。
-    """
+    """Start the optional Shopify billing approval flow."""
     shop = await db.fetchrow(
         "SELECT access_token FROM shops WHERE shop_domain = $1 AND active = true",
         shop_domain,
@@ -94,10 +90,7 @@ async def billing_confirm(
     plan: str = Query("starter"),
     db=Depends(get_db_dep),
 ):
-    """
-    Shopify が承認後にリダイレクトするコールバック。
-    charge を activate して DB に保存する。
-    """
+    """Activate the optional Shopify charge after the buyer approves it."""
     shop_row = await db.fetchrow(
         "SELECT access_token FROM shops WHERE shop_domain = $1 AND active = true",
         shop,
@@ -138,7 +131,8 @@ async def billing_confirm(
 
     await db.execute(
         "UPDATE shops SET plan = $1 WHERE shop_domain = $2",
-        plan, shop,
+        plan,
+        shop,
     )
     await db.execute(
         """
@@ -146,7 +140,8 @@ async def billing_confirm(
         VALUES ($1, $2)
         ON CONFLICT (shop_domain) DO UPDATE SET plan = $2, updated_at = NOW()
         """,
-        shop, plan,
+        shop,
+        plan,
     )
 
     return {"status": status, "shop": shop, "charge_id": charge_id, "plan": plan}

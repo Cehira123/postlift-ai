@@ -1,33 +1,30 @@
-# 課金設計：PostLift AI
+# Code Product Pricing
 
-## プラン構成
+These are suggested one-time code-product packages. They are not SaaS subscription plans.
 
-| プラン | 月額 | 注文数上限 | ターゲット |
-|--------|------|------------|------------|
-| Starter | $29 | 500注文/月 | スモールD2C |
-| Growth | $79 | 3,000注文/月 | 中堅D2C |
-| Scale | $199 | 10,000注文/月 | 成長期D2C |
+## Suggested Packages
 
-## 課金ロジック
+| Package | Suggested Price | Includes |
+| --- | ---: | --- |
+| Starter Code | $199-$499 | Source code, docs, schema, tests, deployment guide. |
+| Pro Code | $499-$999 | Starter plus setup checklist, demo assets, and limited email support window. |
+| Setup Assist | $1,000-$3,000 | Pro plus one buyer-owned deployment walkthrough. |
 
-- Shopify Billing APIを利用した月額サブスクリプション
-- 上限超過時は自動でアップセル提案（強制課金なし）
-- 14日間無料トライアル（クレカ不要）
+Prices should be adjusted based on support burden, proof quality, and buyer type.
 
-## 価値訴求
+## Keep Costs Separate
 
-```
-例：月間1,000注文のストア
-  - accept rate 8%
-  - 承諾時追加金額 平均¥3,000
-  - 月間追加売上 = 1,000 × 0.08 × 3,000 = ¥240,000
-  - PostLiftへの支払い = $79 ≈ ¥12,000
-  → ROI ≈ 20倍
-```
+The buyer should pay their own:
 
-→ 売上が上がっている間は解約動機がほぼ発生しない。
+- Hosting provider fees.
+- PostgreSQL database fees.
+- Shopify account or app-related fees.
+- OpenAI or other AI API usage.
+- Email, logging, monitoring, and backup tools.
+- Legal, accounting, and privacy review.
 
-## 将来の課金オプション
+## Important Sales Rule
 
-- 成功報酬型：月額固定＋増収額の1〜2%
-- 年間プリペイド割引：2ヶ月分無料
+The product should be priced as source code and implementation know-how, not as a promise that the buyer can immediately run a public Shopify App Store SaaS.
+
+Clear positioning reduces refunds, support pressure, and compliance confusion.

@@ -1,69 +1,56 @@
-# ビジネスモデル — PostLift AI
+# Business Model
 
-## 収益構造
+PostLift AI is best treated as a self-hosted code product.
 
-```
-電気代 + API費用（月1,500〜3,000円）
-         ↓
-  Shopify App Store 経由で集客
-         ↓
-  14日間無料トライアル
-         ↓
-  月額サブスクリプション課金
-         ↓
-  AOV uplift により「自分で儲けを証明」→ 低チャーン
-```
+This avoids the heavier responsibilities of operating a public SaaS, such as merchant support, uptime guarantees, billing operations, privacy operations, and Shopify App Store review management.
 
----
+## Positioning
 
-## 料金プラン
+Sell the project as:
 
-| Tier | 価格 | 注文数上限 | 主な機能 |
-|------|------|-----------|----------|
-| Starter | $29/月 | 500注文/月 | AI 提案、基本ダッシュボード |
-| Growth | $79/月 | 2,000注文/月 | 全機能、承諾率分析 |
-| Scale | $199/月 | 無制限 | 全機能、優先サポート |
+> A self-hosted Shopify post-purchase upsell implementation template for developers, agencies, and technical merchants.
 
----
+Do not sell it as:
 
-## 損益分岐点（BEP）
+- A fully managed SaaS.
+- A guaranteed Shopify App Store approved app.
+- A legal/compliance-ready business in a box.
+- A guaranteed revenue uplift system.
 
-| ユーザー数 | MRR（Starter 平均） | コスト | 利益 |
-|---|---|---|---|
-| 1 | $29 | $5〜10 | $19〜24 |
-| 5 | $145 | $15〜20 | $125〜130 |
-| 10 | $290 | $20〜30 | $260〜270 |
-| 50 | $1,450 | $50〜100 | $1,350〜1,400 |
-| 100 | $2,900 | $80〜150 | $2,750〜2,820 |
+## Target Buyers
 
-> API費用はユーザー数に比例して増えるが、サブスク収益の増加速度が上回る構造。
+- Shopify developers who want a head start.
+- Small agencies building custom Shopify apps for clients.
+- Technical merchants who can self-host and modify code.
+- Builders who want a reference implementation for OAuth, webhooks, product sync, and offer scoring.
 
----
+## What Buyers Pay For
 
-## 成長戦略
+- Working source code.
+- Tested core flow.
+- Deployment templates.
+- Shopify configuration guide.
+- Database schema and migrations.
+- A clear technical starting point.
 
-### Phase 1（0〜3ヶ月）: MVP → 最初の10ユーザー
-- App Store 公開
-- Reddit (r/shopify), X (Twitter) でベータユーザー募集
-- 無料 → 有料転換に集中
+## Optional Upsells
 
-### Phase 2（3〜6ヶ月）: $1,000 MRR
-- ケーススタディ公開（AOV +X% などの実績）
-- Shopify Partner エコシステム活用
-- G2/Product Hunt に投稿
+- One-time setup support.
+- Custom deployment help.
+- Custom dashboard improvements.
+- Extension UI customization.
+- Private walkthrough session.
+- Paid bug-fix window after purchase.
 
-### Phase 3（6〜12ヶ月）: $5,000 MRR
-- Growth/Scale プランへのアップグレード促進
-- API 連携（Klaviyo、Recharge など）で機能拡張
-- 英語圏 D2C ブランド向けコンテンツマーケティング
+## Operating Boundary
 
----
+The repository owner should avoid taking responsibility for:
 
-## リスクと対策
+- Buyer hosting accounts.
+- Buyer Shopify approval requests.
+- Buyer legal/privacy compliance.
+- Buyer merchant support.
+- Buyer production incidents.
+- Buyer payment processing or tax obligations.
 
-| リスク | 対策 |
-|---|---|
-| Shopify が同機能を標準化 | ニッチ特化を深める（粗利補正は真似しにくい） |
-| API コスト高騰 | モデルを GPT-4o-mini → より安価なモデルに切り替え可能な設計 |
-| App Store 審査リジェクト | Shopify Partner Program の要件を事前に完全準拠 |
-| チャーン（解約） | AOV uplift を毎月レポートで可視化し「効果が出ている」を証明 |
+Use [buyer-responsibilities.md](buyer-responsibilities.md) as the standard boundary document.

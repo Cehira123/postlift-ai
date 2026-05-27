@@ -1,59 +1,49 @@
-# MVP ロードマップ：PostLift AI
+# Code Product Roadmap
 
-## Phase 0：環境構築（Day 1〜7）
+This roadmap tracks the source-code product, not a hosted SaaS launch.
 
-- [ ] Shopify Partnersアカウント作成
-- [ ] 開発用ストア作成
-- [ ] Shopify CLI セットアップ
-- [ ] Railway / Supabase / Upstash プロジェクト作成
-- [ ] GitHub Actions CI設定
-- [ ] Anthropic APIキー取得
+## Phase 1: Saleable Starter Kit
 
-## Phase 1：コアMVP（Day 8〜30）
+- [x] FastAPI backend.
+- [x] PostgreSQL schema.
+- [x] Shopify OAuth route.
+- [x] Shopify webhook validation.
+- [x] Product sync.
+- [x] Offer ranking.
+- [x] Metrics endpoints.
+- [x] Basic dashboard templates.
+- [x] Automated tests.
+- [x] Deployment smoke test.
+- [x] Self-hosting documentation.
+- [x] Buyer responsibility documentation.
 
-### Week 2
-- [ ] Shopify OAuth認証フロー実装
-- [ ] `orders/paid` Webhook受信・検証
-- [ ] Admin APIで商品・在庫・価格取得
+## Phase 2: Better Buyer Experience
 
-### Week 3
-- [ ] スコアリングロジック実装（v1：関連性＋在庫のみ）
-- [ ] LLMオファーコピー生成（Anthropic Haiku）
-- [ ] Redisキャッシュ層実装
+- [ ] Add a troubleshooting guide.
+- [ ] Add a demo screenshot set.
+- [ ] Add a short demo script for product sync and offer creation.
+- [ ] Add a one-page sales description.
+- [ ] Add a fresh-install checklist.
+- [ ] Add a known-limitations section.
 
-### Week 4
-- [ ] Shopify Post-Purchase Extension UI実装
-- [ ] ワンクリック承諾→Checkout API連携
-- [ ] 結果記録（impressions / results テーブル）
+## Phase 3: Higher-Value Package
 
-## Phase 2：課金＋ダッシュボード（Day 31〜60）
+- [ ] Persist and verify OAuth `state`.
+- [ ] Improve dashboard empty, loading, and error states.
+- [ ] Add recorded Shopify Admin API integration tests.
+- [ ] Add extension deployment screenshots.
+- [ ] Add PostgreSQL backup and restore notes.
+- [ ] Add log redaction for secrets and tokens.
 
-- [ ] Shopify Billing API連携（3プラン）
-- [ ] KPIダッシュボード（accept rate / AOV uplift / added revenue）
-- [ ] 日次KPIスナップショットバッチ
-- [ ] 低accept rateオファーの自動抑制ロジック
-- [ ] 初期ベータテスター募集（Shopify Partnersフォーラム、X）
+## Phase 4: Optional Managed Business
 
-## Phase 3：最適化＋成長（Day 61〜90）
+Only consider this phase if the owner intentionally chooses to run a real SaaS later.
 
-- [ ] 粗利補正スコアリング（v2）
-- [ ] 顧客履歴スコアリング
-- [ ] A/Bテストフレームワーク
-- [ ] App Store申請準備（スクリーンショット、説明文）
-- [ ] Shopify App Store公開
+- Merchant support workflow.
+- Hosted billing workflow.
+- Uptime monitoring and incident response.
+- Privacy/legal review.
+- Shopify App Store submission assets.
+- Public production data-access approvals.
 
-## 収益目標
-
-| 月 | 目標MRR | 必要顧客数（$79プラン想定） |
-|----|---------|-----------------------------|
-| 3ヶ月 | $500 | 7社 |
-| 6ヶ月 | $2,000 | 25社 |
-| 12ヶ月 | $10,000 | 127社 |
-
-## 獲得チャネル（初期）
-
-1. Shopify App Store（オーガニック）
-2. Shopify Partnersフォーラム
-3. X（PostLift AIの進捗発信）
-4. Reddit r/shopify
-5. ProductHunt ローンチ
+Until that decision is made, keep the project positioned as a self-hosted code product.
