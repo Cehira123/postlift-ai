@@ -1,7 +1,6 @@
-"""
-Shopify Admin API クライアント
-- 商品・在庫・価格を取得して products テーブルに同期する
-"""
+"""Shopify Admin API client for product synchronization."""
+from __future__ import annotations
+
 import os
 from typing import Any
 
@@ -23,10 +22,7 @@ async def _get(shop: str, access_token: str, path: str, params: dict | None = No
 
 
 async def fetch_products(shop: str, access_token: str, limit: int = 250) -> list[dict]:
-    """
-    Shopify Admin API から全商品を取得する（ページネーション対応）。
-    返値: [{"id", "title", "variants": [{"price", "inventory_quantity", "cost"}]}]
-    """
+    """Fetch products with variants from Shopify Admin API."""
     all_products: list[dict] = []
     page_info: str | None = None
 
@@ -54,39 +50,46 @@ async def fetch_products(shop: str, access_token: str, limit: int = 250) -> list
 
 
 def extract_product_rows(shop_domain: str, products: list[dict]) -> list[dict]:
-    """
-    Shopify 商品リストを products テーブル用の行データに変換する。
-    粗利率は cost_per_item（仕入れ値）から算出。
+    """Convert Shopify products into offerable variant rows.
+
+    Shopify post-purchase `add_variant` requires a variant ID, so the local
+    `product_id` column intentionally stores the Shopify variant ID.
     """
     rows: list[dict] = []
     for product in products:
+        product_title = product.get("title", "")
         for variant in product.get("variants", []):
+            variant_id = variant.get("id")
             price = float(variant.get("price", 0))
             cost = float(variant.get("cost", 0) or 0)
             stock = int(variant.get("inventory_quantity", 0))
 
-            if price <= 0:
+            if price <= 0 or not variant_id:
                 continue
 
             gross_margin = round((price - cost) / price * 100, 2) if cost > 0 else 0.0
+            variant_title = variant.get("title")
+            title = product_title
+            if variant_title and variant_title != "Default Title":
+                title = f"{product_title} - {variant_title}"
 
-            rows.append({
-                "shop_domain": shop_domain,
-                "product_id": str(product["id"]),
-                "title": product.get("title", ""),
-                "price": price,
-                "gross_margin": gross_margin,
-                "stock_qty": max(stock, 0),
-            })
+            rows.append(
+                {
+                    "shop_domain": shop_domain,
+                    "product_id": str(variant_id),
+                    "inventory_item_id": str(variant.get("inventory_item_id", "")),
+                    "title": title,
+                    "price": price,
+                    "gross_margin": gross_margin,
+                    "stock_qty": max(stock, 0),
+                }
+            )
 
     return rows
 
 
 async def sync_products_to_db(db, shop_domain: str, access_token: str) -> dict:
-    """
-    Shopify から商品を取得して DB を upsert する。
-    Returns: {"synced": int, "skipped": int}
-    """
+    """Fetch Shopify products and upsert offerable variants into the database."""
     products = await fetch_products(shop_domain, access_token)
     rows = extract_product_rows(shop_domain, products)
 
@@ -95,17 +98,19 @@ async def sync_products_to_db(db, shop_domain: str, access_token: str) -> dict:
         await db.execute(
             """
             INSERT INTO products
-                (shop_domain, product_id, title, price, gross_margin, stock_qty, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                (shop_domain, product_id, inventory_item_id, title, price, gross_margin, stock_qty, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
             ON CONFLICT (shop_domain, product_id) DO UPDATE SET
-                title        = EXCLUDED.title,
-                price        = EXCLUDED.price,
-                gross_margin = EXCLUDED.gross_margin,
-                stock_qty    = EXCLUDED.stock_qty,
-                updated_at   = NOW()
+                inventory_item_id = EXCLUDED.inventory_item_id,
+                title             = EXCLUDED.title,
+                price             = EXCLUDED.price,
+                gross_margin      = EXCLUDED.gross_margin,
+                stock_qty         = EXCLUDED.stock_qty,
+                updated_at        = NOW()
             """,
             row["shop_domain"],
             row["product_id"],
+            row["inventory_item_id"],
             row["title"],
             row["price"],
             row["gross_margin"],

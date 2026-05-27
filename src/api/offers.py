@@ -40,6 +40,7 @@ async def get_current_offer(
     return {
         "offer_id": row["id_str"],
         "product_id": row["product_id"],
+        "variant_id": row["product_id"],
         "title": row["title"],
         "price": float(row["upsell_price"]),
         "ai_score": float(row["ai_score"]) if row["ai_score"] else None,

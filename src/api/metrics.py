@@ -1,19 +1,22 @@
-"""
-メトリクス API
-GET /metrics/summary     → ショップ別 30 日間サマリー
-GET /metrics/trend       → 日次承諾率・売上トレンド（最大 90 日）
-GET /metrics/products    → 商品別オファー成績ランキング
-"""
+"""Metrics API."""
 from fastapi import APIRouter, Depends, Query
 
-from src.db.session import get_db_dep
+from src.db.session import get_optional_db_dep
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
 @router.get("/summary")
-async def get_summary(shop_domain: str, db=Depends(get_db_dep)):
-    """直近30日間のアップセル承諾率・追加売上を集計して返す"""
+async def get_summary(shop_domain: str, db=Depends(get_optional_db_dep)):
+    """Return a 30-day offer performance summary."""
+    if db is None:
+        return {
+            "total_offers": 0,
+            "accepted_offers": 0,
+            "accept_rate_pct": 0,
+            "extra_revenue": 0,
+        }
+
     row = await db.fetchrow(
         """
         SELECT
@@ -34,12 +37,12 @@ async def get_summary(shop_domain: str, db=Depends(get_db_dep)):
 async def get_trend(
     shop_domain: str,
     days: int = Query(30, ge=1, le=90),
-    db=Depends(get_db_dep),
+    db=Depends(get_optional_db_dep),
 ):
-    """
-    日次の承諾率・売上トレンドを返す（Chart.js 用）。
-    KPI スナップショットから取得し、なければ upsell_offers から直接集計する。
-    """
+    """Return daily offer performance trend data."""
+    if db is None:
+        return []
+
     rows = await db.fetch(
         """
         SELECT
@@ -53,11 +56,11 @@ async def get_trend(
           AND snapshot_date >= CURRENT_DATE - $2::int
         ORDER BY snapshot_date ASC
         """,
-        shop_domain, days,
+        shop_domain,
+        days,
     )
 
     if not rows:
-        # スナップショットがまだない場合は生データから集計
         rows = await db.fetch(
             """
             SELECT
@@ -72,7 +75,8 @@ async def get_trend(
             GROUP BY created_at::date
             ORDER BY created_at::date ASC
             """,
-            shop_domain, str(days),
+            shop_domain,
+            str(days),
         )
 
     return [dict(r) for r in rows]
@@ -83,12 +87,12 @@ async def get_product_metrics(
     shop_domain: str,
     days: int = Query(30, ge=1, le=90),
     limit: int = Query(10, ge=1, le=50),
-    db=Depends(get_db_dep),
+    db=Depends(get_optional_db_dep),
 ):
-    """
-    商品別のオファー成績ランキングを返す。
-    承諾率・追加売上・表示回数で評価。
-    """
+    """Return product-level offer performance rankings."""
+    if db is None:
+        return []
+
     rows = await db.fetch(
         """
         SELECT
@@ -113,6 +117,8 @@ async def get_product_metrics(
         ORDER BY extra_revenue DESC
         LIMIT $3
         """,
-        shop_domain, str(days), limit,
+        shop_domain,
+        str(days),
+        limit,
     )
     return [dict(r) for r in rows]

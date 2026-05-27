@@ -1,70 +1,65 @@
-# Shopify App Store 申請設定ファイル
-# `shopify app deploy` 実行時に使用する
+# Shopify app configuration. Replace placeholder URLs before deployment.
 
 name = "PostLift AI"
-client_id = ""  # Shopify Partners ダッシュボードから取得
+client_id = ""
+application_url = "https://your-app.example.com"
+embedded = false
 
 [build]
-  automatically_update_urls_on_dev = true
-  dev_store_url = ""  # 開発ストア URL
+automatically_update_urls_on_dev = true
+dev_store_url = ""
 
 [access_scopes]
-  scopes = "read_orders,read_products,write_checkouts,read_inventory,write_draft_orders"
+scopes = "read_orders,read_products,read_inventory,write_checkouts,write_draft_orders"
 
 [auth]
-  redirect_urls = [
-    "https://your-app.replit.app/auth/callback",
-    "https://localhost:5000/auth/callback",
-  ]
+redirect_urls = [
+  "https://your-app.example.com/auth/callback",
+  "https://localhost:5000/auth/callback",
+]
 
 [webhooks]
-  api_version = "2024-04"
+api_version = "2024-04"
 
   [[webhooks.subscriptions]]
-    topics = ["orders/paid"]
-    uri    = "/webhooks/orders/paid"
+  topics = ["orders/paid"]
+  uri = "/webhooks/orders/paid"
 
   [[webhooks.subscriptions]]
-    topics = ["app/uninstalled"]
-    uri    = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = ["products/update"]
+  uri = "/webhooks/products/update"
+
+  [[webhooks.subscriptions]]
+  topics = ["inventory_levels/update"]
+  uri = "/webhooks/inventory_levels/update"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/update"]
+  uri = "/webhooks/customers/update"
 
 [app_proxy]
-  url    = "https://your-app.replit.app"
-  subpath = "tools"
-  prefix = "apps"
-
-[pos]
-  embedded = false
-
-[application_url]
-  url = "https://your-app.replit.app"
+url = "https://your-app.example.com/proxy"
+subpath = "postlift"
+prefix = "apps"
 
 [[extensions]]
-  type = "post_purchase_ui"
-  name = "PostLift AI — Post-Purchase Upsell"
-  handle = "postlift-ai-upsell"
+type = "post_purchase_ui"
+name = "PostLift AI Post-Purchase Upsell"
+handle = "postlift-ai-upsell"
 
-# --- App Listing 用メタデータ ---
 [app_listing]
-  name        = "PostLift AI — ポスト購入アップセル自動化"
-  tagline     = "AIが最適なアップセルを自動提案。承諾率30%以上を実現。"
-  description = """
-PostLift AI は、Shopify ストア向けの AI ポスト購入アップセル最適化 SaaS です。
-
-【主な機能】
-- 注文完了直後にワンクリックでアップセルを提案
-- GPT-4o-mini が顧客の購入履歴に合わせたパーソナライズコピーを自動生成
-- 粗利率・在庫・顧客 RFM スコアでリアルタイムスコアリング
-- A/B テストで訴求コピーを継続的に最適化
-- 日次 KPI レポートをメールで自動送信
-
-【対応プラン】
-- Starter: $29/月（月間 500 オファーまで）
-- Growth:  $79/月（月間 5,000 オファーまで）
-- Scale:   $199/月（無制限）
-
-すべてのプランで 14 日間無料トライアル付き。
+name = "PostLift AI"
+tagline = "AI-powered post-purchase upsells for Shopify."
+description = """
+PostLift AI helps Shopify merchants increase order value with one-click post-purchase offers.
+It ranks offers by gross margin, inventory, prior acceptance rate, and customer fit, then uses
+AI-generated copy when configured. Merchants can monitor revenue, acceptance rate, and A/B test
+results from the dashboard.
 """
-  support_url = "https://your-app.replit.app/support"
-  privacy_policy_url = "https://your-app.replit.app/privacy"
-  developer_name = "PostLift AI, Inc."
+support_url = "https://your-app.example.com/support"
+privacy_policy_url = "https://your-app.example.com/privacy"
+developer_name = "PostLift AI"

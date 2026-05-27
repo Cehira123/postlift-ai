@@ -1,111 +1,88 @@
-# PostLift AI 🚀
+# PostLift AI
 
-> AI-powered post-purchase upsell optimization for Shopify — margin-aware, inventory-aware, self-learning.
+AI-powered post-purchase upsell optimization for Shopify.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Built for Shopify](https://img.shields.io/badge/Platform-Shopify-96bf48)](https://shopify.dev)
+PostLift AI selects the best one-click post-purchase offer after an order is paid. It ranks products using gross margin, inventory, historical acceptance rate, and customer fit, then generates short conversion copy with an OpenAI model when an API key is configured.
 
----
+## What It Includes
 
-## 概要
+- FastAPI backend for Shopify OAuth, webhooks, offers, products, billing, metrics, and dashboard pages.
+- Shopify post-purchase UI extension scaffold.
+- PostgreSQL schema for shops, products, offers, billing, KPI snapshots, A/B tests, and customer scores.
+- Daily KPI snapshot and low-performing offer suppression jobs.
+- Docker, Railway, Render, and GitHub Actions configuration.
+- Unit tests for scoring and webhook signature validation.
 
-PostLift AI は、Shopify の注文完了ページに **AI が選んだポスト購入ワンクリックアップセル** を表示するアプリです。
+## Architecture
 
-- 粗利率・在庫・過去の承諾率を加味して提案を最適化
-- オファー文面も LLM が自動生成
-- 失敗したオファーは自動で頻度を下げる
-- 導入コスト: $0（電気代 + API 費用のみ）
-
----
-
-## ビジネスモデル
-
-| Tier | 価格 | 対象 |
-|------|------|------|
-| Starter | $29/月 | 〜500注文/月 |
-| Growth | $79/月 | 〜2,000注文/月 |
-| Scale | $199/月 | 無制限 |
-
----
-
-## KPI
-
-- **Offer acceptance rate** — 提案承諾率
-- **Added revenue per 100 orders** — 100注文あたり追加売上
-- **AOV uplift** — 平均注文単価の向上率
-- **Margin-adjusted uplift** — 粗利補正後の改善率（差別化ポイント）
-
----
-
-## アーキテクチャ
-
-```
-Shopify Order → Webhook → PostLift API
-                               │
-                    ┌──────────▼──────────┐
-                    │  AI Offer Engine     │
-                    │  (LLM + Rules)       │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────▼────────────────┐
-              │ Offer Selection Logic            │
-              │ - 粗利率フィルタ                  │
-              │ - 在庫チェック                    │
-              │ - 承諾率履歴                      │
-              │ - 商品相性スコア                  │
-              └────────────────┬────────────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │  Post-Purchase UI   │
-                    │  (Shopify Extension) │
-                    └─────────────────────┘
+```text
+Shopify orders/paid webhook
+        |
+        v
+PostLift API -> Product and customer scoring -> Offer persistence
+        |                                           |
+        v                                           v
+Shopify post-purchase extension <-------- /offers/current
+        |
+        v
+/webhooks/upsell/respond -> acceptance metrics and A/B result
 ```
 
----
-
-## ディレクトリ構成
-
-```
-postlift-ai/
-├── README.md
-├── docs/
-│   ├── market-analysis.md       # 市場分析・競合比較
-│   ├── product-spec.md          # 製品要件定義
-│   ├── architecture.md          # システム設計
-│   ├── business-model.md        # 収益モデル
-│   └── 30day-onboarding.md     # 30日導入フレーム
-├── src/
-│   ├── api/                     # Backend API
-│   ├── ai/                      # AI Offer Engine
-│   ├── shopify/                 # Shopify Extension
-│   └── db/                      # DB スキーマ
-├── infra/
-│   ├── n8n/                     # ワークフロー定義
-│   └── docker-compose.yml
-└── .github/
-    └── workflows/
-        └── ci.yml
-```
-
----
-
-## クイックスタート
+## Quick Start
 
 ```bash
-# 1. リポジトリをクローン
-git clone https://github.com/Cehira123/postlift-ai.git
-cd postlift-ai
-
-# 2. 環境変数を設定
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
-# .env に SHOPIFY_API_KEY, OPENAI_API_KEY 等を入力
-
-# 3. 起動
-docker-compose up -d
+uvicorn src.api.main:app --reload --port 5000
 ```
 
----
+For local development without PostgreSQL, `/health` returns `degraded` and the docs remain available at `/docs`. Database-backed endpoints require `DATABASE_URL`.
 
-## ライセンス
+## Required Environment Variables
 
-MIT License — © 2026 Cehira123
+| Variable | Purpose |
+| --- | --- |
+| `APP_URL` | Public HTTPS URL for Shopify callbacks and webhook registration. |
+| `DATABASE_URL` | PostgreSQL connection string. |
+| `SHOPIFY_API_KEY` | Shopify app client ID. |
+| `SHOPIFY_API_SECRET` | Shopify app client secret. |
+| `SHOPIFY_WEBHOOK_SECRET` | Secret used to verify webhook HMAC signatures. |
+| `OPENAI_API_KEY` | Optional. Enables generated upsell copy. Without it, deterministic fallback copy is used. |
+| `CORS_ORIGINS` | Comma-separated allowed browser origins. |
+| `RUN_SCHEDULER` | Set to `false` to disable daily background jobs. |
+
+## Testing
+
+```bash
+pytest
+```
+
+The database smoke test is opt-in:
+
+```bash
+RUN_E2E=1 DATABASE_URL=postgresql://... pytest tests/test_e2e.py
+```
+
+## Deployment Checklist
+
+1. Create a PostgreSQL database and run `src/db/schema.sql`.
+2. Set every required environment variable on the hosting platform.
+3. Configure Shopify app URLs to point to `APP_URL`.
+4. Register webhook topics for `orders/paid`, `app/uninstalled`, product updates, inventory updates, and customer updates.
+5. Deploy the API and confirm `/health` returns `status: ok`.
+6. Build and deploy the Shopify extension.
+7. Run a test order in a Shopify development store and confirm offer creation and acceptance tracking.
+
+## Pricing Model
+
+| Plan | Price | Suggested Limit |
+| --- | ---: | --- |
+| Starter | $29/month | Up to 500 offers/month |
+| Growth | $79/month | Up to 5,000 offers/month |
+| Scale | $199/month | Higher-volume merchants |
+
+## License
+
+MIT License. Copyright 2026 Cehira123.

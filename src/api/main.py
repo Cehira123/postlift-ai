@@ -1,9 +1,6 @@
-"""
-PostLift AI — FastAPI エントリポイント v3
-- lifespan で DB プール・スケジューラーを管理
-- レート制限 / エラーハンドラー / リクエスト ID ミドルウェア追加
-"""
+"""PostLift AI FastAPI application."""
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,10 +23,18 @@ from src.scheduler.daily_report import start_scheduler, stop_scheduler
 from src.shopify.auth import router as auth_router
 
 
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "")
+    if not raw:
+        return ["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:5000"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
-    start_scheduler()
+    if os.getenv("RUN_SCHEDULER", "true").lower() == "true":
+        start_scheduler()
     yield
     stop_scheduler()
     await close_pool()
@@ -38,28 +43,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PostLift AI",
     description=(
-        "Shopify 向け AI ポスト購入アップセル最適化 SaaS。\n\n"
-        "注文完了直後に GPT-4o-mini が最適な商品をワンクリックで提案し、承諾率・追加売上を最大化します。\n\n"
-        "**主な機能:** AI スコアリング / A/B テスト自動化 / 顧客 RFM スコアリング / KPI ダッシュボード / GDPR 対応\n\n"
-        "[ダッシュボードを開く](/dashboard) | [トップページ](/)"
+        "AI-powered post-purchase upsell optimization for Shopify. "
+        "Scores products by margin, inventory, acceptance history, and customer fit."
     ),
     version="0.4.0",
     lifespan=lifespan,
     docs_url="/docs",
 )
 
-# ミドルウェア（後から登録したものが外側になる）
-app.add_middleware(GlobalErrorHandlerMiddleware)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GlobalErrorHandlerMiddleware)
 
-# ルーター登録
 app.include_router(auth_router)
 app.include_router(webhook_router)
 app.include_router(gdpr_router)
@@ -74,9 +75,9 @@ app.include_router(proxy_router)
 app.include_router(demo_router)
 
 
-@app.get("/health", tags=["システム"], summary="ヘルスチェック（DB 接続確認込み）")
+@app.get("/health", tags=["system"], summary="Health check")
 async def health():
-    """サーバーと DB の疎通状態を返します。`status: ok` なら正常稼働中です。"""
+    """Return application and database health."""
     try:
         async with get_db() as db:
             await db.fetchval("SELECT 1")

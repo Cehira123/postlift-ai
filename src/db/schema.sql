@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS products (
     id            BIGSERIAL     PRIMARY KEY,
     shop_domain   TEXT          NOT NULL,
     product_id    TEXT          NOT NULL,
+    inventory_item_id TEXT,
     title         TEXT          NOT NULL,
     price         NUMERIC(12,2) NOT NULL,
     gross_margin  NUMERIC(5,2)  NOT NULL DEFAULT 0,
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS products (
     UNIQUE(shop_domain, product_id)
 );
 CREATE INDEX IF NOT EXISTS idx_products_shop_domain ON products(shop_domain);
+CREATE INDEX IF NOT EXISTS idx_products_inventory_item ON products(shop_domain, inventory_item_id);
 
 -- アップセルオファー履歴
 CREATE TABLE IF NOT EXISTS upsell_offers (
