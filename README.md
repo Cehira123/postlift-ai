@@ -27,6 +27,7 @@ PostLift AI is packaged as a code product, not as a hosted SaaS and not as a rea
 For buyer-side responsibility boundaries, see [docs/buyer-responsibilities.md](docs/buyer-responsibilities.md).
 For the recommended Shopify setup while selling this as source code, see [docs/shopify-settings-for-code-product.md](docs/shopify-settings-for-code-product.md).
 For a Japanese buyer-facing sales page draft, see [docs/sales-page-ja.md](docs/sales-page-ja.md).
+For a detailed Japanese buyer setup guide, see [docs/setup-guide-ja.md](docs/setup-guide-ja.md).
 
 ## Verified Development Flow
 
@@ -131,6 +132,7 @@ Recommended deliverables for selling this as a code product:
 - Buyer-responsibility and data-access notes.
 - Shopify settings guidance for code-product mode.
 - Japanese buyer-facing sales page draft.
+- Detailed Japanese buyer setup guide.
 - Optional paid setup or customization service.
 
 See [docs/code-product-packaging.md](docs/code-product-packaging.md) for package structure and pricing ideas.

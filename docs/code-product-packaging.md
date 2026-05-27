@@ -7,6 +7,7 @@ This file describes how to package PostLift AI as a saleable source-code product
 - Source code repository or downloadable archive.
 - README that clearly says the product is self-hosted.
 - Setup guide.
+- Japanese buyer setup guide.
 - Deployment guide.
 - Buyer responsibilities document.
 - Test checklist.
@@ -19,6 +20,7 @@ Tell buyers to start here:
 
 - `README.md`
 - `docs/self-hosting.md`
+- `docs/setup-guide-ja.md`
 - `docs/deploy.md`
 - `docs/buyer-responsibilities.md`
 - `docs/architecture.md`
@@ -66,7 +68,8 @@ Send buyers to:
 
 1. `README.md`
 2. `docs/self-hosting.md`
-3. `docs/buyer-responsibilities.md`
-4. `docs/deploy.md`
+3. `docs/setup-guide-ja.md`
+4. `docs/buyer-responsibilities.md`
+5. `docs/deploy.md`
 
 Keep support answers focused on code and setup. Do not make legal, tax, or Shopify approval promises.

@@ -90,7 +90,7 @@ PostLift AIは、そこまでの運営責任を含めたサービスではあり
 ## 購入後の流れ
 
 1. ソースコードを受け取る
-2. `README.md` を読む
+2. `README.md` と `docs/setup-guide-ja.md` を読む
 3. `.env.example` を参考に環境変数を設定する
 4. PostgreSQLを用意する
 5. スキーマとマイグレーションを適用する
