@@ -25,6 +25,7 @@ PostLift AI is packaged as a code product, not as a hosted SaaS and not as a rea
 - It does not remove the buyer's responsibility for Shopify protected customer data approvals when they use restricted webhooks or customer data.
 
 For buyer-side responsibility boundaries, see [docs/buyer-responsibilities.md](docs/buyer-responsibilities.md).
+For the recommended Shopify setup while selling this as source code, see [docs/shopify-settings-for-code-product.md](docs/shopify-settings-for-code-product.md).
 
 ## Verified Development Flow
 
@@ -127,6 +128,7 @@ Recommended deliverables for selling this as a code product:
 - Railway/Render deployment guide.
 - Test checklist with expected outputs.
 - Buyer-responsibility and data-access notes.
+- Shopify settings guidance for code-product mode.
 - Optional paid setup or customization service.
 
 See [docs/code-product-packaging.md](docs/code-product-packaging.md) for package structure and pricing ideas.

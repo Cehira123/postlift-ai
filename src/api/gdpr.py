@@ -21,12 +21,13 @@ SHOPIFY_WEBHOOK_SECRET = os.getenv("SHOPIFY_WEBHOOK_SECRET", "")
 
 
 def _verify(body: bytes, hmac_header: str) -> bool:
+    if not SHOPIFY_WEBHOOK_SECRET or not hmac_header:
+        return False
     digest = hmac.new(
-        SHOPIFY_WEBHOOK_SECRET.encode(), body, hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(
-        base64.b64encode(digest.encode()).decode(), hmac_header
-    )
+        SHOPIFY_WEBHOOK_SECRET.encode("utf-8"), body, hashlib.sha256
+    ).digest()
+    expected = base64.b64encode(digest).decode("utf-8")
+    return hmac.compare_digest(expected, hmac_header)
 
 
 @router.post("/customers/redact")
