@@ -14,7 +14,7 @@ import {
   useExtensionInput,
 } from "@shopify/post-purchase-ui-extensions-react";
 
-const APP_URL = "https://your-app.example.com";
+const APP_URL = "https://postlift-api-production.up.railway.app";
 
 extend("Checkout::PostPurchase::ShouldRender", async ({ inputData, storage }) => {
   const { initialPurchase, shop } = inputData;

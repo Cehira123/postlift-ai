@@ -19,12 +19,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 SHOPIFY_API_KEY    = os.getenv("SHOPIFY_API_KEY", "")
 SHOPIFY_API_SECRET = os.getenv("SHOPIFY_API_SECRET", "")
 APP_URL            = os.getenv("APP_URL", "https://your-app.com")
-SHOPIFY_API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2024-04")
+SHOPIFY_API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2026-04")
 
 SCOPES = (
     "read_orders,"
     "read_products,"
-    "write_checkouts,"
     "read_inventory,"
     "write_draft_orders,"
     "read_customers"
