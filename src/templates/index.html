@@ -38,7 +38,7 @@
     <nav>
       <a class="ghost" href="/dashboard">Dashboard</a>
       <a class="ghost" href="/docs">API</a>
-      <a class="button" href="/auth/install?shop=your-shop.myshopify.com">Install</a>
+      <a class="button" href="#" onclick="return startInstall(event)">Install</a>
     </nav>
   </header>
   <main>
@@ -46,7 +46,7 @@
       <h1>Post-purchase upsells that know what to offer.</h1>
       <p class="lead">PostLift AI ranks products by margin, inventory, acceptance history, and customer fit, then serves a one-click Shopify post-purchase offer.</p>
       <div class="actions">
-        <a class="button" href="/auth/install?shop=your-shop.myshopify.com">Start Shopify install</a>
+        <a class="button" href="#" onclick="return startInstall(event)">Start Shopify install</a>
         <a class="button secondary" href="/dashboard">Open demo dashboard</a>
       </div>
     </section>
@@ -65,5 +65,28 @@
     </section>
   </main>
   <footer>PostLift AI - Shopify post-purchase offer optimization</footer>
+  <script>
+    const initialShopDomain = "{{ shop_domain }}";
+
+    function startInstall(event) {
+      if (event) event.preventDefault();
+
+      const params = new URLSearchParams(window.location.search);
+      const shop =
+        params.get("shop") ||
+        initialShopDomain ||
+        window.prompt("Enter your Shopify store domain", "your-store.myshopify.com");
+
+      if (!shop) return false;
+
+      const installUrl = `/auth/install?shop=${encodeURIComponent(shop)}`;
+      if (window.top && window.top !== window) {
+        window.top.location.href = installUrl;
+      } else {
+        window.location.href = installUrl;
+      }
+      return false;
+    }
+  </script>
 </body>
 </html>

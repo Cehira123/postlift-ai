@@ -16,7 +16,13 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def landing(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "shop_domain": request.query_params.get("shop", ""),
+        },
+    )
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
