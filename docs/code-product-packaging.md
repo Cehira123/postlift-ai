@@ -11,6 +11,7 @@ This file describes how to package PostLift AI as a saleable source-code product
 - Deployment guide.
 - Buyer responsibilities document.
 - Test checklist.
+- Japanese demo runbook.
 - Example `.env.example`.
 - Demo screenshots or short demo video.
 
@@ -21,6 +22,7 @@ Tell buyers to start here:
 - `README.md`
 - `docs/self-hosting.md`
 - `docs/setup-guide-ja.md`
+- `docs/demo-guide-ja.md`
 - `docs/deploy.md`
 - `docs/buyer-responsibilities.md`
 - `docs/architecture.md`
@@ -69,7 +71,8 @@ Send buyers to:
 1. `README.md`
 2. `docs/self-hosting.md`
 3. `docs/setup-guide-ja.md`
-4. `docs/buyer-responsibilities.md`
-5. `docs/deploy.md`
+4. `docs/demo-guide-ja.md`
+5. `docs/buyer-responsibilities.md`
+6. `docs/deploy.md`
 
 Keep support answers focused on code and setup. Do not make legal, tax, or Shopify approval promises.
