@@ -1,29 +1,26 @@
-# ---- ビルドステージ ----
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# システム依存のみ先にコピー（スーパーレイヤーキャッシュ効かせる）
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+ && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ---- 本番ステージ ----
 FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
 
 WORKDIR /app
 
-# ライブラリのみコピー
- COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# ソースコード
+COPY --from=builder /install /usr/local
 COPY . .
 
-# 非 root ユーザーで起動（セキュリティ）
-RUN useradd -m appuser
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+ && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

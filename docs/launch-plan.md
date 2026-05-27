@@ -74,6 +74,8 @@ Do not start App Store submission work until this milestone is green.
 - Set environment variables from `.env.example`.
 - Confirm `/health` returns `{"status":"ok"}` after `DATABASE_URL` is set.
 
+Follow the detailed steps in [Deployment Guide](deploy.md).
+
 ### Phase 3: Shopify Connection
 
 - Create the Shopify app in Shopify Partners.

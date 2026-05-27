@@ -3,29 +3,32 @@
 .gitignore
 
 # Python
-__pycache__
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-*.egg-info
+*.egg-info/
 dist/
 build/
 .venv/
 venv/
 
-# テスト
+# Test and cache output
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 tests/
 
-# 環境変数
+# Environment variables
 .env
 .env.*
 !.env.example
 
-# ローカル開発
+# Local-only files
 infra/docker-compose.yml
-docs/
 
 # IDE
 .vscode/
